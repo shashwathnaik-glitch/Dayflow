@@ -1,10 +1,17 @@
+<<<<<<< HEAD
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import * as timeoffApi from "./timeoffApi.js";
+=======
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
+import { checkInApi, checkOutApi, fetchTodayAttendanceApi, fetchAttendanceHistoryApi, isUuid } from "./services/attendanceService.js";
+import { fetchEmployeePrivateInfoApi } from "./services/employeeService.js";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
-import { checkInApi, checkOutApi, fetchTodayAttendanceApi, fetchAttendanceHistoryApi, isUuid } from "./services/attendanceService.js";
-import { fetchEmployeePrivateInfoApi } from "./services/employeeService.js";
+<<<<<<< HEAD
+=======
 import {
   listEmployees,
   getAllAttendance,
@@ -14,6 +21,7 @@ import {
   getEmployeeSalary,
   calculateSalaryPreview
 } from "./lib/dayflow-api";
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
 
 /* =========================================================================
    DAYFLOW — HRMS PROTOTYPE
@@ -140,7 +148,30 @@ function makeTempPassword(){
   return "Day@" + Math.floor(1000 + Math.random()*9000);
 }
 
+<<<<<<< HEAD
+// Reusable salary calculator — single source of truth for all payroll math.
+// ASSUMPTION (undocumented in reference design, chosen for hackathon simplicity):
+// Basic = 50% of Monthly Wage; HRA = 50% of Basic (per reference design);
+// Standard Allowance = 10% of Basic; Performance Bonus = 8% of Basic;
+// LTA = 8.33% of Basic (1/12); Fixed Allowance balances Gross back to Monthly Wage.
+// PF (employee) = 12% of Basic; Professional Tax = flat ₹200/month (typical India slab).
+function computeSalary(monthlyWage){
+  const basic = Math.round(monthlyWage * 0.5);
+  const hra = Math.round(basic * 0.5);
+  const standardAllowance = Math.round(basic * 0.10);
+  const performanceBonus = Math.round(basic * 0.08);
+  const lta = Math.round(basic * 0.0833);
+  const runningTotal = basic + hra + standardAllowance + performanceBonus + lta;
+  const fixedAllowance = Math.max(monthlyWage - runningTotal, 0);
+  const gross = basic + hra + standardAllowance + performanceBonus + lta + fixedAllowance;
+  const pf = Math.round(basic * 0.12);
+  const professionalTax = 200;
+  const net = gross - pf - professionalTax;
+  return { basic, hra, standardAllowance, performanceBonus, lta, fixedAllowance, gross, pf, professionalTax, net };
+}
+=======
 // computeSalary is now imported from "./src/lib/salary"
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
 
 /* ------------------------------- Seed data ------------------------------- */
 const DEPARTMENTS = ["Engineering","Design","Sales","Marketing","Support"];
@@ -173,6 +204,10 @@ function buildSeed(){
   EMP_SEED.forEach((e, idx) => {
     const { code, serial } = genLoginId(e.first, e.last, e.join);
     const id = "emp_" + (idx+1);
+<<<<<<< HEAD
+    const salary = computeSalary(e.wage);
+=======
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
     employees.push({
       id, loginId:code, serial,
       firstName:e.first, lastName:e.last, name:`${e.first} ${e.last}`,
@@ -190,7 +225,11 @@ function buildSeed(){
         skills: idx%2===0 ? ["Communication","Problem Solving","Ownership"] : ["Leadership","Stakeholder Mgmt","Analytics"],
         certifications: idx%3===0 ? ["PMP Foundations"] : [],
       },
+<<<<<<< HEAD
+      monthlyWage:e.wage, salary,
+=======
       monthlyWage:e.wage,
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       active:true,
     });
     users.push({ loginId:code, password:"Welcome@2026", role:"employee", employeeId:id });
@@ -214,7 +253,11 @@ function buildSeed(){
     employees.forEach((emp, idx) => {
       const roll = (hashStr(emp.id+dateStr) % 100 + 100) % 100;
       if (roll < 6) {
+<<<<<<< HEAD
+        attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn:null, checkOut:null, workHours:0, extraHours:0, status:"Absent" });
+=======
         attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn:null, checkOut:null, workHours:0, extraHours:0, status:"absent" });
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
         return;
       }
       const inHour = 9 + (roll % 3 === 0 ? 1 : 0);
@@ -225,7 +268,11 @@ function buildSeed(){
       const checkOut = new Date(d); checkOut.setHours(outHour, outMin, 0);
       const workHours = +(((checkOut - checkIn) / 3600000)).toFixed(1);
       const extraHours = +Math.max(0, workHours-8).toFixed(1);
+<<<<<<< HEAD
+      const status = workHours < 5 ? "Half-day" : "Present";
+=======
       const status = workHours < 5 ? "half_day" : "present";
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn, checkOut, workHours, extraHours, status });
     });
   }
@@ -253,7 +300,11 @@ function buildSeed(){
   const todayStr = fmtDate(today);
   [employees[0], employees[3]].forEach(emp => {
     const ci = new Date(); ci.setHours(9,20,0);
+<<<<<<< HEAD
+    attendance.push({ employeeId:emp.id, date:todayStr, day:dayName(today), checkIn:ci, checkOut:null, workHours:0, extraHours:0, status:"Present" });
+=======
     attendance.push({ employeeId:emp.id, date:todayStr, day:dayName(today), checkIn:ci, checkOut:null, workHours:0, extraHours:0, status:"present" });
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   });
 
   return { employees, users, attendance, leaveAllocations, leaveRequests, genLoginId, todayStr };
@@ -266,7 +317,10 @@ const Icon = {
   clock:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><circle cx="10" cy="10" r="7.3" stroke="currentColor" strokeWidth="1.6"/><path d="M10 6v4.3l2.8 1.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   calendar:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><rect x="2.5" y="4" width="15" height="13" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   wallet:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><rect x="2.5" y="5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M2.5 8.5h15" stroke="currentColor" strokeWidth="1.6"/><circle cx="14" cy="12" r="1.2" fill="currentColor"/></svg>,
+<<<<<<< HEAD
+=======
   chart:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><path d="M3.3 17V3.3m0 13.4h13.4M6.7 13.3v-4m3.3 4v-7.3m3.3 7.3v-10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   user:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><circle cx="10" cy="6.7" r="3.2" stroke="currentColor" strokeWidth="1.6"/><path d="M3.3 17c0-3.6 3-5.8 6.7-5.8s6.7 2.2 6.7 5.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   logout:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><path d="M7.5 17.5H4.8a1.3 1.3 0 01-1.3-1.3V3.8a1.3 1.3 0 011.3-1.3h2.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M13 14l4-4-4-4M17 10H7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   bell:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><path d="M5 8a5 5 0 0110 0c0 4 1.5 5 1.5 5h-13S5 12 5 8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M8.2 15.5a1.9 1.9 0 003.6 0" stroke="currentColor" strokeWidth="1.6"/></svg>,
@@ -360,12 +414,23 @@ function FlowRing({ checkedIn, checkedOut, size=132 }){
 }
 
 /* ================================ APP ==================================== */
+<<<<<<< HEAD
+=======
 /* ================================ APP ==================================== */
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
 export default function DayflowApp(){
   const seedRef = useRef(null);
   if (!seedRef.current) seedRef.current = buildSeed();
   const seed = seedRef.current;
 
+<<<<<<< HEAD
+  const [employees, setEmployees] = useState(seed.employees);
+  const [users, setUsers] = useState(seed.users);
+  const [attendance, setAttendance] = useState(seed.attendance);
+  const [leaveAllocations, setLeaveAllocations] = useState(seed.leaveAllocations);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [isLeaveLoading, setIsLeaveLoading] = useState(false);
+=======
   const [employees, setEmployees] = useState([]);
   const [users, setUsers] = useState(seed.users);
   const [attendance, setAttendance] = useState([]);
@@ -374,10 +439,33 @@ export default function DayflowApp(){
   const [salaries, setSalaries] = useState({});
   const [loading, setLoading] = useState(true);
 
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   const todayStr = seed.todayStr;
   const today = new Date();
 
   const [session, setSession] = useState(null); // { role, employeeId }
+<<<<<<< HEAD
+
+  const refreshLeaveData = async (sess = session) => {
+    if (!sess) return;
+    setIsLeaveLoading(true);
+    try {
+      const requests = await timeoffApi.fetchLeaveRequests(sess);
+      setLeaveRequests(requests);
+    } catch (err) {
+      toast(err.message || "Failed to load leave requests", "err");
+    } finally {
+      setIsLeaveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      refreshLeaveData(session);
+    }
+  }, [session]);
+=======
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   const [toasts, setToasts] = useState([]);
   function toast(msg, tone="ok"){
     const id = Math.random().toString(36).slice(2);
@@ -385,6 +473,8 @@ export default function DayflowApp(){
     setTimeout(()=> setToasts(t=>t.filter(x=>x.id!==id)), 3200);
   }
 
+<<<<<<< HEAD
+=======
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -420,6 +510,7 @@ export default function DayflowApp(){
     loadData();
   }, [loadData]);
 
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   function login(loginId, password){
     const u = users.find(u => u.loginId.toLowerCase()===String(loginId).trim().toLowerCase());
     if (!u || u.password !== password){
@@ -432,6 +523,10 @@ export default function DayflowApp(){
 
   /* ------------------------------ Derived data ------------------------------ */
   function getTodayAttendance(empId){ return attendance.find(a=>a.employeeId===empId && a.date===todayStr); }
+<<<<<<< HEAD
+  function getEmpLeaveToday(empId){
+    return leaveRequests.find(r => r.employeeId===empId && r.status==="Approved" && overlaps(todayStr, r.startDate, r.endDate));
+  }
     function getEmpLeaveToday(empId){
     return leaveRequests.find(r => r.employeeId===empId && (r.status==="Approved" || r.status==="approved") && overlaps(todayStr, r.startDate, r.endDate));
   }
@@ -441,6 +536,21 @@ export default function DayflowApp(){
   function empLeaveHistory(empId){
     return leaveRequests.filter(r=>r.employeeId===empId).sort((a,b)=> a.createdAt<b.createdAt?1:-1);
   }
+  function getTodayStatus(empId){
+    if (getEmpLeaveToday(empId)) return "On Leave";
+    const a = getTodayAttendance(empId);
+    if (a && a.checkIn) return "Present";
+    return "Not Checked In";
+  }
+  function getAllocations(empId){
+    return timeoffApi.getAllocations(empId);
+  }
+  function empAttendanceHistory(empId){
+    return attendance.filter(a=>a.employeeId===empId).sort((a,b)=> a.date<b.date?1:-1);
+  }
+  function empLeaveHistory(empId){
+    return leaveRequests.filter(r=>r.employeeId===empId).sort((a,b)=> a.createdAt<b.createdAt?1:-1);
+=======
   function getTodayStatus(empId){
     // TODO: leave request field shape pending Member 3 confirmation.
     const onLeave = leaveRequests.some(r => r.employeeId===empId && r.status==="Approved" && overlaps(todayStr, r.startDate, r.endDate));
@@ -460,6 +570,7 @@ export default function DayflowApp(){
       const a = leaveAllocations.find(x=>x.employeeId===empId && x.leaveTypeId===lt.id) || {allocated:lt.allocated, used:0};
       return { ...lt, used:a.used, remaining: a.allocated - a.used };
     });
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   }
 
   /* ------------------------------- Actions (RBAC-guarded) ------------------------------- */
@@ -503,6 +614,32 @@ export default function DayflowApp(){
     }));
     toast("Checked out. See you tomorrow!");
   }
+  async function submitLeaveRequest(empId, payload){
+    if (!(session && (session.role==="admin" || session.employeeId===empId))) {
+      toast("Not authorized.","err");
+      throw new Error("Not authorized.");
+    }
+    const res = await timeoffApi.submitLeaveRequest(empId, payload);
+    await refreshLeaveData();
+    toast("Time off request submitted.");
+    return res;
+  }
+  async function decideLeave(reqId, decision, comment){
+    if (!(session && session.role==="admin")) {
+      toast("Only Admin/HR can approve or reject requests.","err");
+      throw new Error("Only Admin/HR can approve or reject requests.");
+    }
+    const res = await timeoffApi.decideLeave(reqId, decision, comment);
+    await refreshLeaveData();
+    toast(`Request ${decision.toLowerCase()}.`, decision==="Rejected"?"err":"ok");
+    return res;
+  }
+  function createEmployee(payload){
+=======
+      return { ...a, checkOut, workHours, extraHours, status: workHours<5?"half_day":"present" };
+    }));
+    toast("Checked out. See you tomorrow!");
+  }
   function submitLeaveRequest(empId, payload){
     if (!(session && (session.role==="admin" || session.employeeId===empId))) return toast("Not authorized.","err");
     // TODO: leave request field shape pending Member 3 confirmation.
@@ -522,10 +659,38 @@ export default function DayflowApp(){
     }
   }
   async function createEmployee(payload){
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
     if (!(session && session.role==="admin")) return toast("Only Admin/HR can create employees.","err");
     const joinYear = String(new Date().getFullYear());
     const { code, serial } = seed.genLoginId(payload.firstName, payload.lastName, joinYear);
     const tempPassword = makeTempPassword();
+<<<<<<< HEAD
+    const id = "emp_" + (employees.length+1) + "_" + Math.random().toString(36).slice(2,5);
+    const salary = computeSalary(payload.monthlyWage);
+    const emp = {
+      id, loginId:code, serial,
+      firstName:payload.firstName, lastName:payload.lastName, name:`${payload.firstName} ${payload.lastName}`,
+      email: payload.email || `${payload.firstName.toLowerCase()}.${payload.lastName.toLowerCase()}@dayflow.com`,
+      personalEmail:"", mobile:payload.mobile||"—",
+      department:payload.department, position:payload.position, manager:payload.manager||"—",
+      company:COMPANY, location:payload.location||LOCATIONS[0],
+      dob:"—", address:"—", gender:payload.gender||"—", nationality:"Indian", maritalStatus:"—",
+      joinYear, joinDate:fmtDate(today),
+      privateInfo:{ pan:"—", uan:"—", bank:"—", resume:"—", skills:[], certifications:[] },
+      monthlyWage:payload.monthlyWage, salary, active:true,
+    };
+    setEmployees(list=>[...list, emp]);
+    setUsers(list=>[...list, { loginId:code, password:tempPassword, role:"employee", employeeId:id }]);
+    setLeaveAllocations(list=>[...list,
+      { employeeId:id, leaveTypeId:"pto", allocated:24, used:0 },
+      { employeeId:id, leaveTypeId:"sick", allocated:7, used:0 },
+    ]);
+    toast(`Employee created — Login ID ${code}`);
+    return { employee:emp, loginId:code, tempPassword };
+  }
+
+  /* --------------------------------- Render --------------------------------- */
+=======
     try {
       const apiPayload = {
         firstName: payload.firstName,
@@ -567,6 +732,7 @@ export default function DayflowApp(){
     );
   }
 
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   if (!session){
     return <div className="df-app df-scrollbar"><style>{TOKENS}</style><LoginScreen onLogin={login} employees={employees}/></div>;
   }
@@ -585,8 +751,14 @@ export default function DayflowApp(){
       {session.role==="admin"
         ? <AdminShell
             employees={employees} users={users} attendance={attendance} leaveRequests={leaveRequests}
+<<<<<<< HEAD
+            leaveAllocations={leaveAllocations} todayStr={todayStr}
+            getTodayStatus={getTodayStatus} getAllocations={getAllocations}
+            empAttendanceHistory={empAttendanceHistory} empLeaveHistory={empLeaveHistory}
+=======
             leaveAllocations={leaveAllocations} todayStr={todayStr} salaries={salaries}
             getTodayStatus={getTodayStatus} getAllocations={getAllocations}
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
             createEmployee={createEmployee} decideLeave={decideLeave} onLogout={logout}
             switchToEmployee={(empId)=>setSession({role:"employee", employeeId:empId})}
           />
@@ -595,6 +767,10 @@ export default function DayflowApp(){
             employees={employees}
             attendance={attendance} leaveRequests={leaveRequests}
             getTodayAttendance={getTodayAttendance} getTodayStatus={getTodayStatus} getAllocations={getAllocations}
+<<<<<<< HEAD
+            empAttendanceHistory={empAttendanceHistory} empLeaveHistory={empLeaveHistory}
+=======
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
             checkIn={checkIn} checkOut={checkOut} submitLeaveRequest={submitLeaveRequest}
             onLogout={logout}
           />
@@ -677,7 +853,11 @@ function LoginScreen({ onLogin, employees }){
 /* ============================== ADMIN SHELL ================================ */
 function AdminShell(props){
   const { employees, attendance, leaveRequests, todayStr, getTodayStatus, getAllocations,
+<<<<<<< HEAD
+    empAttendanceHistory, empLeaveHistory, createEmployee, decideLeave, onLogout, switchToEmployee } = props;
+=======
     createEmployee, decideLeave, onLogout, switchToEmployee, salaries } = props;
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   const [page, setPage] = useState("dashboard");
   const [selectedEmpId, setSelectedEmpId] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -688,7 +868,10 @@ function AdminShell(props){
     { id:"employees", label:"Employees", icon:Icon.users },
     { id:"timeoff", label:"Time Off", icon:Icon.calendar },
     { id:"payroll", label:"Payroll", icon:Icon.wallet },
+<<<<<<< HEAD
+=======
     { id:"analytics", label:"Analytics", icon:Icon.chart },
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
     { id:"ask", label:"Ask Dayflow", icon:Icon.spark },
   ];
 
@@ -712,13 +895,24 @@ function AdminShell(props){
           <EmployeeDetailPage
             emp={employees.find(e=>e.id===selectedEmpId)} isAdmin
             getTodayStatus={getTodayStatus} getAllocations={getAllocations}
+<<<<<<< HEAD
+            attendanceHistory={empAttendanceHistory(selectedEmpId)}
+            leaveHistory={empLeaveHistory(selectedEmpId)}
+=======
             attendanceHistory={attendance.filter(a => a.employeeId === selectedEmpId)}
             leaveHistory={leaveRequests.filter(r => r.employeeId === selectedEmpId)}
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
             onBack={()=>setPage("employees")}
             onLoginAs={()=>switchToEmployee(selectedEmpId)}
           />
         )}
         {page==="timeoff" && (
+<<<<<<< HEAD
+          <AdminTimeOffPage leaveRequests={leaveRequests} employees={employees} decideLeave={decideLeave} isLoading={isLeaveLoading}/>
+        )}
+        {page==="payroll" && (
+          <AdminPayrollPage employees={employees} attendance={attendance} todayStr={todayStr}/>
+=======
           <AdminTimeOffPage leaveRequests={leaveRequests} employees={employees} decideLeave={decideLeave}/>
         )}
         {page==="payroll" && (
@@ -726,6 +920,7 @@ function AdminShell(props){
         )}
         {page==="analytics" && (
           <AdminAnalyticsPage employees={employees} attendance={attendance} leaveRequests={leaveRequests} salaries={salaries}/>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
         )}
         {page==="ask" && <AskDayflow employees={employees} attendance={attendance} leaveRequests={leaveRequests} getTodayStatus={getTodayStatus}/>}
       </div>
@@ -779,6 +974,11 @@ function Sidebar({ nav, page, setPage, title, roleLabel, name, onLogout }){
 
 function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTodayStatus, onOpenEmployee, onGoTimeoff }){
   const total = employees.length;
+<<<<<<< HEAD
+  const presentToday = employees.filter(e=>getTodayStatus(e.id)==="Present").length;
+  const onLeaveToday = employees.filter(e=>getTodayStatus(e.id)==="On Leave").length;
+  const notCheckedIn = total - presentToday - onLeaveToday;
+=======
   const presentToday = employees.filter(e=>{
     const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
     return a && (a.status === "present" || a.status === "half_day");
@@ -791,6 +991,7 @@ function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTod
     return hasLeaveRow || hasApprovedLeave;
   }).length;
   const notCheckedIn = employees.filter(e => !attendance.some(a => a.employeeId === e.id && a.date === todayStr)).length;
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   const pending = leaveRequests.filter(r=>r.status==="Pending");
 
   const last7 = useMemo(()=>{
@@ -799,8 +1000,13 @@ function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTod
       const d = new Date(); d.setDate(d.getDate()-i);
       if (isWeekend(d)) continue;
       const ds = fmtDate(d);
+<<<<<<< HEAD
+      const present = attendance.filter(a=>a.date===ds && a.checkIn).length;
+      const absent = attendance.filter(a=>a.date===ds && a.status==="Absent").length;
+=======
       const present = attendance.filter(a=>a.date===ds && (a.status==="present" || a.status==="half_day")).length;
       const absent = attendance.filter(a=>a.date===ds && a.status==="absent").length;
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       days.push({ day: d.toLocaleDateString("en-US",{weekday:"short"}), Present:present, Absent:absent });
     }
     return days;
@@ -1049,6 +1255,38 @@ function PrivateInfoGrid({ emp }){
     </InfoGrid>
   );
 }
+<<<<<<< HEAD
+function SalaryBreakdown({ emp, employeeView }){
+  const s = emp.salary;
+  return (
+    <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16}}>
+      <div className="df-card" style={{padding:22}}>
+        <h3 style={{fontSize:14, margin:"0 0 14px"}}>Earnings</h3>
+        {[["Basic Salary",s.basic],["HRA",s.hra],["Standard Allowance",s.standardAllowance],
+          ["Performance Bonus",s.performanceBonus],["Leave Travel Allowance",s.lta],["Fixed Allowance",s.fixedAllowance]]
+          .map(([label,val])=>(
+          <div key={label} style={{display:"flex", justifyContent:"space-between", padding:"7px 0", fontSize:13.5, borderBottom:"1px solid var(--line)"}}>
+            <span style={{color:"var(--ink-soft)"}}>{label}</span><span className="df-mono">{fmtINR(val)}</span>
+          </div>
+        ))}
+        <div style={{display:"flex", justifyContent:"space-between", padding:"12px 0 0", fontSize:14, fontWeight:700}}>
+          <span>Gross Salary</span><span className="df-mono">{fmtINR(s.gross)}</span>
+        </div>
+      </div>
+      <div className="df-card" style={{padding:22}}>
+        <h3 style={{fontSize:14, margin:"0 0 14px"}}>Deductions</h3>
+        {[["Provident Fund",s.pf],["Professional Tax",s.professionalTax]].map(([label,val])=>(
+          <div key={label} style={{display:"flex", justifyContent:"space-between", padding:"7px 0", fontSize:13.5, borderBottom:"1px solid var(--line)"}}>
+            <span style={{color:"var(--ink-soft)"}}>{label}</span><span className="df-mono">−{fmtINR(val)}</span>
+          </div>
+        ))}
+        <div style={{display:"flex", justifyContent:"space-between", padding:"12px 0 0", fontSize:16, fontWeight:700, color:"var(--success)"}}>
+          <span>Net Salary / month</span><span className="df-mono">{fmtINR(s.net)}</span>
+        </div>
+        <p style={{fontSize:11.5, color:"var(--ink-faint)", marginTop:14, lineHeight:1.5}}>
+          Wage type: Monthly · {fmtINR(emp.monthlyWage)}/mo. Figures are a hackathon demonstration of salary structure, not statutory payroll advice.
+        </p>
+=======
 function SalaryBreakdown({ emp, employeeView, isAdmin }){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1154,6 +1392,7 @@ function SalaryBreakdown({ emp, employeeView, isAdmin }){
             Wage type: Monthly · {fmtINR(isEditing ? Number(wageInput) : emp.monthlyWage)}/mo. Figures are a hackathon demonstration of salary structure, not statutory payroll advice.
           </p>
         </div>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       </div>
     </div>
   );
@@ -1181,12 +1420,38 @@ function AttendanceTable({ rows }){
     </div>
   );
 }
+<<<<<<< HEAD
+function LeaveHistoryTable({ rows, allocations, empId }){
+  const [allocState, setAllocState] = useState(allocations || []);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (empId) {
+      setLoading(true);
+      timeoffApi.getAllocations(empId)
+        .then(res => setAllocState(res))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    } else if (allocations) {
+      setAllocState(allocations);
+    }
+  }, [empId, allocations, rows]);
+
+  return (
+    <div>
+      {loading ? (
+        <div style={{padding:20, textAlign:"center", color:"var(--ink-faint)"}}>Loading allocation balances...</div>
+      ) : allocState && allocState.length > 0 && (
+        <div style={{display:"flex", gap:14, marginBottom:18}}>
+          {allocState.map(a=>(
+=======
 function LeaveHistoryTable({ rows, allocations }){
   return (
     <div>
       {allocations && (
         <div style={{display:"flex", gap:14, marginBottom:18}}>
           {allocations.map(a=>(
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
             <div key={a.id} className="df-card" style={{padding:16, flex:1}}>
               <div style={{fontSize:12.5, color:"var(--ink-soft)", fontWeight:600}}>{a.name}</div>
               <div className="df-display" style={{fontSize:22, margin:"4px 0"}}>{a.remaining} <span style={{fontSize:12, color:"var(--ink-faint)", fontFamily:"var(--font-body)"}}>days left</span></div>
@@ -1198,15 +1463,25 @@ function LeaveHistoryTable({ rows, allocations }){
       {rows.length===0 ? <EmptyState title="No time-off requests" subtitle="Requests will show up here."/> : (
         <div className="df-card" style={{padding:"6px 20px 14px"}}>
           <table className="df-table">
+<<<<<<< HEAD
+            <thead><tr><th>Type</th><th>Dates</th><th>Reason</th><th>Attachment</th><th>Status</th><th>Comment</th></tr></thead>
+=======
             <thead><tr><th>Type</th><th>Dates</th><th>Reason</th><th>Status</th><th>Comment</th></tr></thead>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
             <tbody>
               {rows.map(r=>(
                 <tr key={r.id}>
                   <td>{LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name}</td>
                   <td className="df-mono" style={{fontSize:12}}>{r.startDate} → {r.endDate}</td>
                   <td style={{color:"var(--ink-soft)"}}>{r.reason}</td>
+<<<<<<< HEAD
+                  <td><AttachmentViewer path={r.attachmentUrl || r.attachment}/></td>
+                  <td><LeaveStatusBadge status={r.status}/></td>
+                  <td style={{color:"var(--ink-faint)", fontSize:12.5}}>{r.admin_comment || r.comment || "—"}</td>
+=======
                   <td><LeaveStatusBadge status={r.status}/></td>
                   <td style={{color:"var(--ink-faint)", fontSize:12.5}}>{r.comment||"—"}</td>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
                 </tr>
               ))}
             </tbody>
@@ -1217,7 +1492,11 @@ function LeaveHistoryTable({ rows, allocations }){
   );
 }
 
+<<<<<<< HEAD
+function AdminTimeOffPage({ leaveRequests, employees, decideLeave, isLoading }){
+=======
 function AdminTimeOffPage({ leaveRequests, employees, decideLeave }){
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   const [filter, setFilter] = useState("Pending");
   const [decisionModal, setDecisionModal] = useState(null);
   const rows = leaveRequests.filter(r=> filter==="All" || r.status===filter)
@@ -1232,18 +1511,34 @@ function AdminTimeOffPage({ leaveRequests, employees, decideLeave }){
         ))}
       </div>
       <div className="df-card" style={{padding:"6px 20px 14px"}}>
+<<<<<<< HEAD
+        {isLoading ? (
+          <div style={{padding:"40px 20px", textAlign:"center", color:"var(--ink-soft)"}}>Loading time off requests...</div>
+        ) : rows.length===0 ? <EmptyState title="Nothing here" subtitle="No requests match this filter."/> : (
+          <table className="df-table">
+            <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Reason</th><th>Attachment</th><th>Status</th><th></th></tr></thead>
+=======
         {rows.length===0 ? <EmptyState title="Nothing here" subtitle="No requests match this filter."/> : (
           <table className="df-table">
             <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
             <tbody>
               {rows.map(r=>{
                 const emp = employees.find(e=>e.id===r.employeeId);
                 return (
                   <tr key={r.id}>
+<<<<<<< HEAD
+                    <td><div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={emp?.name || r.employeeId} size={26}/>{emp?.name || r.employeeId}</div></td>
+                    <td>{LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name}</td>
+                    <td className="df-mono" style={{fontSize:12}}>{r.startDate} → {r.endDate}</td>
+                    <td style={{maxWidth:220, color:"var(--ink-soft)"}}>{r.reason}</td>
+                    <td><AttachmentViewer path={r.attachmentUrl || r.attachment}/></td>
+=======
                     <td><div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={emp.name} size={26}/>{emp.name}</div></td>
                     <td>{LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name}</td>
                     <td className="df-mono" style={{fontSize:12}}>{r.startDate} → {r.endDate}</td>
                     <td style={{maxWidth:220, color:"var(--ink-soft)"}}>{r.reason}</td>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
                     <td><LeaveStatusBadge status={r.status}/></td>
                     <td>
                       {r.status==="Pending" ? (
@@ -1251,7 +1546,11 @@ function AdminTimeOffPage({ leaveRequests, employees, decideLeave }){
                           <button className="df-btn df-btn-success df-btn-sm" onClick={()=>setDecisionModal({req:r, emp, decision:"Approved"})}><Icon.check/></button>
                           <button className="df-btn df-btn-danger df-btn-sm" onClick={()=>setDecisionModal({req:r, emp, decision:"Rejected"})}><Icon.x/></button>
                         </div>
+<<<<<<< HEAD
+                      ) : <span style={{fontSize:12, color:"var(--ink-faint)"}}>{r.admin_comment || r.comment || "—"}</span>}
+=======
                       ) : <span style={{fontSize:12, color:"var(--ink-faint)"}}>{r.comment||"—"}</span>}
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
                     </td>
                   </tr>
                 );
@@ -1263,7 +1562,14 @@ function AdminTimeOffPage({ leaveRequests, employees, decideLeave }){
 
       {decisionModal && (
         <DecisionModal data={decisionModal} onClose={()=>setDecisionModal(null)}
+<<<<<<< HEAD
+          onConfirm={async (comment)=>{
+            await decideLeave(decisionModal.req.id, decisionModal.decision, comment);
+            setDecisionModal(null);
+          }}/>
+=======
           onConfirm={(comment)=>{ decideLeave(decisionModal.req.id, decisionModal.decision, comment); setDecisionModal(null); }}/>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       )}
     </div>
   );
@@ -1271,23 +1577,183 @@ function AdminTimeOffPage({ leaveRequests, employees, decideLeave }){
 
 function DecisionModal({ data, onClose, onConfirm }){
   const [comment, setComment] = useState("");
+<<<<<<< HEAD
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const approve = data.decision==="Approved";
+
+  async function handleConfirm() {
+    setErrorMsg("");
+    setIsSubmitting(true);
+    try {
+      await onConfirm(comment);
+    } catch (err) {
+      setErrorMsg(err.message || "Action failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} width={460}>
+      <ModalHeader title={`${data.decision} request`} subtitle={`${data.emp?.name} · ${LEAVE_TYPES.find(t=>t.id===data.req.leaveTypeId)?.name}`} onClose={onClose}/>
+      <div style={{padding:22}}>
+        <p style={{fontSize:13, color:"var(--ink-soft)", marginTop:0}}>{data.req.startDate} → {data.req.endDate} · "{data.req.reason}"</p>
+        {(data.req.attachmentUrl || data.req.attachment) && (
+          <div style={{fontSize:12.5, color:"var(--brand-flow)", marginBottom:12, display:"flex", alignItems:"center", gap:6}}>
+            <span>Attachment:</span>
+            <AttachmentViewer path={data.req.attachmentUrl || data.req.attachment}/>
+          </div>
+        )}
+        {errorMsg && (
+          <div style={{background:"var(--danger-bg)", color:"var(--danger)", padding:"10px 14px", borderRadius:8, fontSize:12.5, marginBottom:14, fontWeight:600}}>
+            {errorMsg}
+          </div>
+        )}
+=======
   const approve = data.decision==="Approved";
   return (
     <Modal onClose={onClose} width={440}>
       <ModalHeader title={`${data.decision} request`} subtitle={`${data.emp.name} · ${LEAVE_TYPES.find(t=>t.id===data.req.leaveTypeId)?.name}`} onClose={onClose}/>
       <div style={{padding:22}}>
         <p style={{fontSize:13, color:"var(--ink-soft)", marginTop:0}}>{data.req.startDate} → {data.req.endDate} · "{data.req.reason}"</p>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
         <label className="df-label">Comment (optional)</label>
         <textarea className="df-textarea" rows={3} placeholder={approve?"e.g. Approved, enjoy your time off!":"Let them know why."} value={comment} onChange={e=>setComment(e.target.value)}/>
       </div>
       <div style={{padding:"0 22px 22px", display:"flex", gap:10, justifyContent:"flex-end"}}>
+<<<<<<< HEAD
+        <button className="df-btn df-btn-ghost" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button className={`df-btn ${approve?"df-btn-success":"df-btn-danger"}`} onClick={handleConfirm} disabled={isSubmitting}>
+          {isSubmitting ? "Processing..." : `Confirm ${data.decision.toLowerCase()}`}
+        </button>
+=======
         <button className="df-btn df-btn-ghost" onClick={onClose}>Cancel</button>
         <button className={`df-btn ${approve?"df-btn-success":"df-btn-danger"}`} onClick={()=>onConfirm(comment)}>Confirm {data.decision.toLowerCase()}</button>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       </div>
     </Modal>
   );
 }
 
+<<<<<<< HEAD
+function RequestTimeOffModal({ allocations, onClose, onSubmit }){
+  const [form, setForm] = useState({ leaveTypeId:"pto", startDate:"", endDate:"", reason:"", attachmentFile:null, attachment:"" });
+  const [err, setErr] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  function set(k,v){ setForm(f=>({...f,[k]:v})); }
+
+  async function submit(e){
+    e.preventDefault();
+    setErr("");
+    if (!form.startDate || !form.endDate || !form.reason){
+      setErr("Start date, end date, and reason are required.");
+      return;
+    }
+    if (form.endDate < form.startDate){
+      setErr("End date cannot be before start date.");
+      return;
+    }
+    const isSick = form.leaveTypeId === "sick";
+    if (isSick && !form.attachmentFile){
+      setErr("Medical document/certificate attachment is required for Sick Leave.");
+      return;
+    }
+
+    let storagePath = null;
+    if (isSick && form.attachmentFile) {
+      setUploading(true);
+      try {
+        const res = await timeoffApi.uploadLeaveAttachment(form.attachmentFile);
+        if (res.error || !res.data?.path) {
+          setErr(res.error?.message || "Attachment upload failed. Please try again.");
+          setUploading(false);
+          return;
+        }
+        storagePath = res.data.path;
+      } catch (uploadErr) {
+        setErr(uploadErr.message || "Attachment upload failed. Please try again.");
+        setUploading(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        ...form,
+        attachmentUrl: storagePath,
+      });
+    } catch (error) {
+      setErr(error.message || "Failed to submit request.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const isSickSelected = form.leaveTypeId === "sick";
+
+  return (
+    <Modal onClose={onClose} width={460}>
+      <ModalHeader title="Request time off" onClose={onClose}/>
+      <form onSubmit={submit}>
+        <div style={{padding:22, display:"flex", flexDirection:"column", gap:14}}>
+          {err && (
+            <div style={{background:"var(--danger-bg)", color:"var(--danger)", padding:"10px 14px", borderRadius:9, fontSize:12.5, fontWeight:600}}>
+              {err}
+            </div>
+          )}
+          <div>
+            <label className="df-label">Time-off type</label>
+            <select className="df-select" value={form.leaveTypeId} onChange={e=>set("leaveTypeId",e.target.value)}>
+              {LEAVE_TYPES.map(t=>{
+                const bal = (allocations || []).find(a=>a.id===t.id);
+                return <option key={t.id} value={t.id}>{t.name}{bal?` (${bal.remaining} left)`:""}</option>;
+              })}
+            </select>
+          </div>
+          <div style={{display:"flex", gap:12}}>
+            <div style={{flex:1}}><label className="df-label">Start date</label><input className="df-input" type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/></div>
+            <div style={{flex:1}}><label className="df-label">End date</label><input className="df-input" type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/></div>
+          </div>
+          <div>
+            <label className="df-label">Reason / remarks</label>
+            <textarea className="df-textarea" rows={3} value={form.reason} onChange={e=>set("reason",e.target.value)}/>
+          </div>
+          <div>
+            <label className="df-label">
+              Attach document {isSickSelected ? <span style={{color:"var(--danger)"}}>* (Required for Sick Leave)</span> : "(optional)"}
+            </label>
+            <input className="df-input" type="file" onChange={e=>{
+              const file = e.target.files[0];
+              setForm(f=>({...f, attachmentFile:file, attachment: file ? file.name : ""}));
+            }}/>
+          </div>
+        </div>
+        <div style={{padding:22, display:"flex", gap:10, justifyContent:"flex-end", borderTop:"1px solid var(--line)"}}>
+          <button type="button" className="df-btn df-btn-ghost" onClick={onClose} disabled={uploading || submitting}>Cancel</button>
+          <button type="submit" className="df-btn df-btn-dawn" disabled={uploading || submitting}>
+            {uploading ? "Uploading..." : submitting ? "Submitting..." : "Submit request"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function AdminPayrollPage({ employees, attendance, todayStr }){
+  const totalGross = employees.reduce((s,e)=>s+e.salary.gross,0);
+  const totalNet = employees.reduce((s,e)=>s+e.salary.net,0);
+  const byDept = useMemo(()=>{
+    const map = {};
+    employees.forEach(e=>{ map[e.department]=(map[e.department]||0)+e.salary.gross; });
+    return Object.entries(map).map(([name,value])=>({name, value:Math.round(value/1000)}));
+  },[employees]);
+=======
 function AdminPayrollPage({ employees, attendance, todayStr, salaries }){
   const employeesWithSalary = useMemo(() => {
     return employees.map(e => ({
@@ -1303,6 +1769,7 @@ function AdminPayrollPage({ employees, attendance, todayStr, salaries }){
     employeesWithSalary.forEach(e=>{ map[e.department]=(map[e.department]||0)+e.salary.gross; });
     return Object.entries(map).map(([name,value])=>({name, value:Math.round(value/1000)}));
   },[employeesWithSalary]);
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
 
   return (
     <div>
@@ -1328,7 +1795,11 @@ function AdminPayrollPage({ employees, attendance, todayStr, salaries }){
         <table className="df-table">
           <thead><tr><th>Employee</th><th>Department</th><th>Monthly Wage</th><th>Gross</th><th>Deductions</th><th>Net</th></tr></thead>
           <tbody>
+<<<<<<< HEAD
+            {employees.map(e=>(
+=======
             {employeesWithSalary.map(e=>(
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
               <tr key={e.id}>
                 <td><div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={e.name} size={26}/>{e.name}</div></td>
                 <td>{e.department}</td>
@@ -1356,7 +1827,11 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
     let answer;
     if (text.includes("absen")){
       const counts = {};
+<<<<<<< HEAD
+      attendance.filter(a=>a.status==="Absent").forEach(a=>{ counts[a.employeeId]=(counts[a.employeeId]||0)+1; });
+=======
       attendance.filter(a=>a.status==="absent").forEach(a=>{ counts[a.employeeId]=(counts[a.employeeId]||0)+1; });
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
       if (sorted.length===0) answer = "No absences recorded in the current window — great attendance!";
       else {
@@ -1375,6 +1850,12 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
         answer = `${pending.length} pending request(s): ${lines.join("; ")}.`;
       }
     } else if (text.includes("present") || text.includes("today")){
+<<<<<<< HEAD
+      const present = employees.filter(e=>getTodayStatus(e.id)==="Present").length;
+      answer = `${present} of ${employees.length} employees are checked in today.`;
+    } else if (text.includes("payroll") || text.includes("salary") || text.includes("gross") || text.includes("net")){
+      const totalNet = employees.reduce((s,e)=>s+e.salary.net,0);
+=======
       const present = employees.filter(e=>{
         const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
         return a && (a.status === "present" || a.status === "half_day");
@@ -1385,6 +1866,7 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
         const sal = salaries[e.id] || { net: 0 };
         return s + sal.net;
       }, 0);
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
       answer = `Total monthly net payroll across ${employees.length} employees is ${fmtINR(totalNet)}.`;
     } else if (text.includes("leave") && text.includes("most")){
       const map = {};
@@ -1506,7 +1988,7 @@ function CredentialsModal({ result, onClose, onLoginAs }){
 }
 
 /* ============================= EMPLOYEE SHELL ============================== */
-/* ============================= EMPLOYEE SHELL ============================== */
+<<<<<<< HEAD
 function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAttendance, getTodayStatus, getAllocations,
   checkIn, checkOut, submitLeaveRequest, onLogout }){
   const [page, setPage] = useState("dashboard");
@@ -1537,6 +2019,26 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
         .finally(() => setLoadingPrivate(false));
     }
   }, [page, profileTab, me]);
+  const [allocations, setAllocations] = useState([]);
+  const [loadingAlloc, setLoadingAlloc] = useState(false);
+
+  useEffect(() => {
+    if (me) {
+      setLoadingAlloc(true);
+      timeoffApi.getAllocations(me.id)
+        .then(res => setAllocations(res))
+        .catch(() => {})
+        .finally(() => setLoadingAlloc(false));
+    }
+  }, [me, leaveRequests]);
+
+=======
+/* ============================= EMPLOYEE SHELL ============================== */
+function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAttendance, getTodayStatus, getAllocations,
+  checkIn, checkOut, submitLeaveRequest, onLogout }){
+  const [page, setPage] = useState("dashboard");
+  const [requestOpen, setRequestOpen] = useState(false);
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   if (!me) return null;
 
   const nav = [
@@ -1547,11 +2049,15 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
     { id:"payroll", label:"Payroll", icon:Icon.wallet },
   ];
   const todayA = getTodayAttendance(me.id);
+<<<<<<< HEAD
+  const myLeave = empLeaveHistory(me.id);
+=======
   const allocations = getAllocations(me.id);
   
   // TODO: leave request field shape pending Member 3 confirmation.
   const myLeave = useMemo(() => leaveRequests.filter(r => r.employeeId === me.id), [leaveRequests, me.id]);
   const myAttendance = useMemo(() => attendance.filter(a => a.employeeId === me.id), [attendance, me.id]);
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
 
   return (
     <div style={{display:"flex"}}>
@@ -1574,14 +2080,22 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
         {page==="attendance" && (
           <div>
             <PageHeader title="My Attendance" subtitle="Your check-in history."/>
+<<<<<<< HEAD
+            <AttendanceTable rows={empAttendanceHistory(me.id)}/>
+=======
             <AttendanceTable rows={myAttendance}/>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
           </div>
         )}
         {page==="timeoff" && (
           <div>
             <PageHeader title="My Time Off" subtitle="Track balances and request new time off."
               action={<button className="df-btn df-btn-dawn" onClick={()=>setRequestOpen(true)}><Icon.plus/> Request time off</button>} />
+<<<<<<< HEAD
+            <LeaveHistoryTable rows={myLeave} allocations={allocations} empId={me.id}/>
+=======
             <LeaveHistoryTable rows={myLeave} allocations={allocations}/>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
           </div>
         )}
         {page==="payroll" && (
@@ -1604,6 +2118,8 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
   const checkedOut = !!(todayA && todayA.checkOut);
   const recentLeave = myLeave.slice(0,3);
 
+<<<<<<< HEAD
+=======
   const [netPay, setNetPay] = useState("—");
 
   useEffect(() => {
@@ -1618,6 +2134,7 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
     return () => { active = false; };
   }, [me.id]);
 
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   return (
     <div>
       <PageHeader title={`Hey, ${me.firstName} 👋`} subtitle={prettyDate(new Date())}/>
@@ -1628,7 +2145,11 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
             <button className="df-btn df-btn-primary" style={{flex:1, justifyContent:"center"}} disabled={checkedIn} onClick={checkIn}>Check In</button>
             <button className="df-btn df-btn-ghost" style={{flex:1, justifyContent:"center"}} disabled={!checkedIn || checkedOut} onClick={checkOut}>Check Out</button>
           </div>
+<<<<<<< HEAD
+          {checkedIn && <p style={{fontSize:11.5, color:"var(--ink-faint)", marginTop:10}}>Checked in at {fmtTime(todayA.checkIn)}{checkedOut ? ` · out at ${fmtTime(todayA.checkOut)}` : ""}</p>}
+=======
           {checkedIn && todayA.checkIn && <p style={{fontSize:11.5, color:"var(--ink-faint)", marginTop:10}}>Checked in at {fmtTime(new Date(todayA.checkIn))}{checkedOut && todayA.checkOut ? ` · out at ${fmtTime(new Date(todayA.checkOut))}` : ""}</p>}
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
         </div>
 
         <div style={{display:"flex", flexDirection:"column", gap:14}}>
@@ -1648,6 +2169,20 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
               <h3 style={{fontSize:14, margin:0}}>Recent time-off requests</h3>
               <button className="df-btn df-btn-ghost df-btn-sm" onClick={()=>onGoTo("timeoff")}>View all</button>
             </div>
+<<<<<<< HEAD
+            {recentLeave.length===0 ? <EmptyState title="No requests yet" subtitle="Your submitted requests will appear here."/> : (
+              <div style={{display:"flex", flexDirection:"column", gap:10}}>
+                {recentLeave.map(r=>(
+                  <div key={r.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13}}>
+                    <div>
+                      <div style={{fontWeight:600}}>{LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name}</div>
+                      <div className="df-mono" style={{fontSize:11.5, color:"var(--ink-faint)"}}>{r.startDate} → {r.endDate}</div>
+                    </div>
+                    <LeaveStatusBadge status={r.status}/>
+                  </div>
+                ))}
+              </div>
+=======
             {recentLeave.length===0 ? <EmptyState title="No requests yet" subtitle="Your requests will list here."/> : (
               <table className="df-table" style={{fontSize:12.5}}>
                 <thead><tr><th>Dates</th><th>Type</th><th>Status</th></tr></thead>
@@ -1661,6 +2196,7 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
                   ))}
                 </tbody>
               </table>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
             )}
           </div>
         </div>
@@ -1673,7 +2209,11 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
         </div>
         <div className="df-card" style={{padding:20, flex:1, cursor:"pointer"}} onClick={()=>onGoTo("payroll")}>
           <Icon.wallet/><div style={{fontWeight:700, fontSize:13.5, marginTop:8}}>Payroll</div>
+<<<<<<< HEAD
+          <div style={{fontSize:12, color:"var(--ink-faint)"}}>Net pay: {fmtINR(me.salary.net)}/mo</div>
+=======
           <div style={{fontSize:12, color:"var(--ink-faint)"}}>Net pay: {netPay}</div>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
         </div>
         <div className="df-card" style={{padding:20, flex:1, cursor:"pointer"}} onClick={()=>onGoTo("attendance")}>
           <Icon.clock/><div style={{fontWeight:700, fontSize:13.5, marginTop:8}}>Attendance</div>
@@ -1687,6 +2227,31 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
 function RequestTimeOffModal({ allocations, onClose, onSubmit }){
   const [form, setForm] = useState({ leaveTypeId:"pto", startDate:"", endDate:"", reason:"", attachment:"" });
   const [err, setErr] = useState("");
+<<<<<<< HEAD
+  const [submitting, setSubmitting] = useState(false);
+
+  function set(k,v){ setForm(f=>({...f,[k]:v})); }
+
+  async function submit(e){
+    e.preventDefault();
+    setErr("");
+    if (!form.startDate || !form.endDate || !form.reason){
+      setErr("Start date, end date, and reason are required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSubmit(form);
+    } catch (error) {
+      setErr(error.message || "Failed to submit request.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const isSickSelected = form.leaveTypeId === "sick";
+
+=======
   function set(k,v){ setForm(f=>({...f,[k]:v})); }
   function submit(e){
     e.preventDefault();
@@ -1694,16 +2259,29 @@ function RequestTimeOffModal({ allocations, onClose, onSubmit }){
     if (form.endDate < form.startDate){ setErr("End date can't be before the start date."); return; }
     onSubmit(form);
   }
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
   return (
     <Modal onClose={onClose} width={460}>
       <ModalHeader title="Request time off" onClose={onClose}/>
       <form onSubmit={submit}>
         <div style={{padding:22, display:"flex", flexDirection:"column", gap:14}}>
+<<<<<<< HEAD
+          {err && (
+            <div style={{background:"var(--danger-bg)", color:"var(--danger)", padding:"10px 14px", borderRadius:9, fontSize:12.5, fontWeight:600}}>
+              {err}
+            </div>
+          )}
+=======
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
           <div>
             <label className="df-label">Time-off type</label>
             <select className="df-select" value={form.leaveTypeId} onChange={e=>set("leaveTypeId",e.target.value)}>
               {LEAVE_TYPES.map(t=>{
+<<<<<<< HEAD
+                const bal = (allocations || []).find(a=>a.id===t.id);
+=======
                 const bal = allocations.find(a=>a.id===t.id);
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
                 return <option key={t.id} value={t.id}>{t.name}{bal?` (${bal.remaining} left)`:""}</option>;
               })}
             </select>
@@ -1717,6 +2295,19 @@ function RequestTimeOffModal({ allocations, onClose, onSubmit }){
             <textarea className="df-textarea" rows={3} value={form.reason} onChange={e=>set("reason",e.target.value)}/>
           </div>
           <div>
+<<<<<<< HEAD
+            <label className="df-label">
+              Attach document {isSickSelected ? <span style={{color:"var(--danger)"}}>* (Required for Sick Leave)</span> : "(optional)"}
+            </label>
+            <input className="df-input" type="file" onChange={e=>set("attachment", e.target.files[0]?.name || "")}/>
+          </div>
+        </div>
+        <div style={{padding:22, display:"flex", gap:10, justifyContent:"flex-end", borderTop:"1px solid var(--line)"}}>
+          <button type="button" className="df-btn df-btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button type="submit" className="df-btn df-btn-dawn" disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit request"}
+          </button>
+=======
             <label className="df-label">Attach document (optional)</label>
             <input className="df-input" type="file" onChange={e=>set("attachment", e.target.files[0]?.name || "")}/>
           </div>
@@ -1725,11 +2316,14 @@ function RequestTimeOffModal({ allocations, onClose, onSubmit }){
         <div style={{padding:22, display:"flex", gap:10, justifyContent:"flex-end", borderTop:"1px solid var(--line)"}}>
           <button type="button" className="df-btn df-btn-ghost" onClick={onClose}>Cancel</button>
           <button type="submit" className="df-btn df-btn-dawn">Submit request</button>
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
         </div>
       </form>
     </Modal>
   );
 }
+<<<<<<< HEAD
+=======
 
 function AdminAnalyticsPage({ employees, attendance, leaveRequests, salaries }){
   const [range, setRange] = useState(7); // 7 or 30 days
@@ -1853,3 +2447,4 @@ function AdminAnalyticsPage({ employees, attendance, leaveRequests, salaries }){
   );
 }
 
+>>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
