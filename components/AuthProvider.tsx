@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 interface AuthContextType {
   user: any | null;
   role: 'admin' | 'employee' | null;
+  profile: any | null;
   loading: boolean;
   refresh: () => Promise<void>;
   logout: () => Promise<void>;
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
   const [role, setRole] = useState<'admin' | 'employee' | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchUser = async () => {
@@ -26,14 +28,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data && data.profile) {
         setUser(data.session.user);
         setRole(data.profile.role);
+        setProfile(data.profile);
       } else {
         setUser(null);
         setRole(null);
+        setProfile(null);
       }
     } catch (err) {
       console.error('Error fetching user auth status:', err);
       setUser(null);
       setRole(null);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -58,11 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await apiLogout();
     setUser(null);
     setRole(null);
+    setProfile(null);
     setLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, refresh: fetchUser, logout: handleLogout }}>
+    <AuthContext.Provider value={{ user, role, profile, loading, refresh: fetchUser, logout: handleLogout }}>
       {children}
     </AuthContext.Provider>
   );

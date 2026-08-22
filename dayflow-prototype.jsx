@@ -123,16 +123,16 @@ const TOKENS = `
 /* ------------------------------ Utilities ------------------------------- */
 const AVATAR_PALETTE = ["#1E2A52","#4C5FD6","#B9790A","#188A66","#C5392E","#293869","#7A4FD6"];
 const avatarColor = (seed) => AVATAR_PALETTE[Math.abs(hashStr(seed)) % AVATAR_PALETTE.length];
-function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i); h|=0;} return h; }
-function initials(name){ return name.split(" ").map(p=>p[0]).slice(0,2).join("").toUpperCase(); }
+function hashStr(s){ let h=0; const str = String(s || ""); for(let i=0;i<str.length;i++){h=(h<<5)-h+str.charCodeAt(i); h|=0;} return h; }
+function initials(name){ if(!name) return ""; return String(name).split(" ").map(p=>p?p[0]:"").slice(0,2).join("").toUpperCase(); }
 function pad(n,len){ return String(n).padStart(len,"0"); }
-function fmtDate(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1,2)}-${pad(d.getDate(),2)}`; }
-function dayName(d){ return d.toLocaleDateString("en-US",{weekday:"short"}); }
-function prettyDate(d){ return d.toLocaleDateString("en-US",{month:"short", day:"numeric", year:"numeric"}); }
+export function fmtDate(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1,2)}-${pad(d.getDate(),2)}`; }
+export function dayName(d){ return d.toLocaleDateString("en-US",{weekday:"short"}); }
+export function prettyDate(d){ return d.toLocaleDateString("en-US",{month:"short", day:"numeric", year:"numeric"}); }
 function isWeekend(d){ const day=d.getDay(); return day===0 || day===6; }
-function fmtINR(n){ return "₹" + Math.round(n).toLocaleString("en-IN"); }
-function fmtTime(d){ if(!d) return "—"; return d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}); }
-function overlaps(dateStr, startStr, endStr){ return dateStr>=startStr && dateStr<=endStr; }
+export function fmtINR(n){ return "₹" + Math.round(n).toLocaleString("en-IN"); }
+export function fmtTime(d){ if(!d) return "—"; return d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}); }
+export function overlaps(dateStr, startStr, endStr){ return dateStr>=startStr && dateStr<=endStr; }
 
 // Reusable login-ID generator: OI + first2(first) + first2(last) + joinYear + 4-digit sequence
 function makeLoginIdFactory(){
@@ -151,14 +151,14 @@ function makeTempPassword(){
 // computeSalary is now imported from "./src/lib/salary"
 
 /* ------------------------------- Seed data ------------------------------- */
-const DEPARTMENTS = ["Engineering","Design","Sales","Marketing","Support"];
-const LEAVE_TYPES = [
+export const DEPARTMENTS = ["Engineering","Design","Sales","Marketing","Support"];
+export const LEAVE_TYPES = [
   { id:"pto", name:"Paid Time Off", allocated:24 },
   { id:"sick", name:"Sick Leave", allocated:7 },
   { id:"unpaid", name:"Unpaid Leave", allocated:null },
 ];
 const COMPANY = "Dayflow Inc.";
-const LOCATIONS = ["Bengaluru HQ","Mumbai Office","Remote"];
+export const LOCATIONS = ["Bengaluru HQ","Mumbai Office","Remote"];
 
 const EMP_SEED = [
   { first:"Rohan", last:"Mehta", dept:"Engineering", role:"Engineering Manager", manager:"—", wage:145000, join:"2022", gender:"Male", nationality:"Indian", marital:"Married" },
@@ -268,7 +268,7 @@ function buildSeed(){
 }
 
 /* --------------------------------- Icons --------------------------------- */
-const Icon = {
+export const Icon = {
   dashboard:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.6"/><rect x="11" y="2.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.6"/><rect x="2.5" y="11" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.6"/><rect x="11" y="11" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.6"/></svg>,
   users:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><circle cx="7" cy="6.5" r="2.6" stroke="currentColor" strokeWidth="1.6"/><path d="M2 16c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><circle cx="14.5" cy="7" r="2.1" stroke="currentColor" strokeWidth="1.6"/><path d="M12.7 11.7c2-.2 4.8 1 5.3 3.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   clock:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><circle cx="10" cy="10" r="7.3" stroke="currentColor" strokeWidth="1.6"/><path d="M10 6v4.3l2.8 1.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -339,7 +339,7 @@ function AttendanceBadge({ status }){
 }
 
 /* ------------------------------- Flow Ring -------------------------------- */
-function FlowRing({ checkedIn, checkedOut, size=132 }){
+export function FlowRing({ checkedIn, checkedOut, size=132 }){
   const r = (size-14)/2, c = 2*Math.PI*r;
   const now = new Date();
   const progress = Math.min(1, Math.max(0, (now.getHours()*60+now.getMinutes()-480)/600)); // 8am-18am window
@@ -361,7 +361,7 @@ function FlowRing({ checkedIn, checkedOut, size=132 }){
         {checkedOut ? "Wrapped up" : checkedIn ? "In flow" : "Not started"}
       </text>
       <text x="50%" y="62%" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="11" fill="var(--ink-faint)">
-        {checkedOut ? "day complete" : checkedIn ? "since " + fmtTime(checkedIn) : "check in to begin"}
+        {checkedOut ? "day complete" : checkedIn ? (typeof checkedIn === "boolean" ? "active" : "since " + fmtTime(checkedIn)) : "check in to begin"}
       </text>
     </svg>
   );
@@ -541,6 +541,7 @@ export default function DayflowApp(){
     toast(`Request ${decision.toLowerCase()}.`, decision==="Rejected"?"err":"ok");
     return res;
   }
+  async function createEmployee(payload){
     if (!(session && session.role==="admin")) return toast("Only Admin/HR can create employees.","err");
     const joinYear = String(new Date().getFullYear());
     const { code, serial } = seed.genLoginId(payload.firstName, payload.lastName, joinYear);
@@ -768,7 +769,7 @@ function AdminShell(props){
   );
 }
 
-function Sidebar({ nav, page, setPage, title, roleLabel, name, onLogout }){
+export function Sidebar({ nav, page, setPage, title, roleLabel, name, onLogout }){
   return (
     <div style={{width:230, flexShrink:0, background:"var(--brand-deep)", minHeight:"100vh", padding:"22px 14px", display:"flex", flexDirection:"column"}}>
       <div style={{display:"flex", alignItems:"center", gap:9, padding:"0 8px 24px"}}>
@@ -796,7 +797,7 @@ function Sidebar({ nav, page, setPage, title, roleLabel, name, onLogout }){
   );
 }
 
-function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTodayStatus, onOpenEmployee, onGoTimeoff }){
+export function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTodayStatus, onOpenEmployee, onGoTimeoff }){
   const total = employees.length;
   const presentToday = employees.filter(e=>{
     const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
@@ -891,9 +892,9 @@ function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTod
             <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Reason</th></tr></thead>
             <tbody>
               {pending.slice(0,5).map(r=>{
-                const emp = employees.find(e=>e.id===r.employeeId);
+                const emp = employees.find(e=>e.id===r.employeeId) || { id: "", name: "Unknown" };
                 return (
-                  <tr key={r.id} className="clickable" onClick={()=>onOpenEmployee(emp.id)}>
+                  <tr key={r.id} className="clickable" onClick={()=>emp.id && onOpenEmployee(emp.id)}>
                     <td><div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={emp.name} size={26}/>{emp.name}</div></td>
                     <td>{LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name}</td>
                     <td className="df-mono" style={{fontSize:12}}>{r.startDate} → {r.endDate}</td>
@@ -909,7 +910,7 @@ function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTod
   );
 }
 
-function PageHeader({ title, subtitle, action }){
+export function PageHeader({ title, subtitle, action }){
   return (
     <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:22}}>
       <div>
@@ -921,13 +922,20 @@ function PageHeader({ title, subtitle, action }){
   );
 }
 
-function EmployeeListPage({ employees, getTodayStatus, onOpen, onCreate }){
+export function EmployeeListPage({ employees, getTodayStatus, onOpen, onCreate }){
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("All");
-  const filtered = employees.filter(e =>
-    (dept==="All" || e.department===dept) &&
-    (e.name.toLowerCase().includes(q.toLowerCase()) || e.position.toLowerCase().includes(q.toLowerCase()))
-  );
+  const filtered = employees.filter(e => {
+    const name = String(e?.name ?? "").toLowerCase();
+    const position = String(e?.position ?? "").toLowerCase();
+    const department = String(e?.department ?? "");
+    const search = String(q ?? "").toLowerCase();
+
+    return (
+      (dept === "All" || department === dept) &&
+      (name.includes(search) || position.includes(search))
+    );
+  });
   return (
     <div>
       <PageHeader title="Employees" subtitle={`${employees.length} people across ${DEPARTMENTS.length} departments`}
@@ -970,7 +978,7 @@ function EmployeeListPage({ employees, getTodayStatus, onOpen, onCreate }){
   );
 }
 
-function EmployeeDetailPage({ emp, isAdmin, getTodayStatus, getAllocations, attendanceHistory, leaveHistory, onBack, onLoginAs, onEditable, canEditBasic, onSaveBasic }){
+export function EmployeeDetailPage({ emp, isAdmin, getTodayStatus, getAllocations, attendanceHistory, leaveHistory, onBack, onLoginAs, onEditable, canEditBasic, onSaveBasic }){
   const [tab, setTab] = useState("basic");
   if (!emp) return null;
   const status = getTodayStatus(emp.id);
@@ -1014,7 +1022,7 @@ function EmployeeDetailPage({ emp, isAdmin, getTodayStatus, getAllocations, atte
   );
 }
 
-function RestrictedNotice({ text }){
+export function RestrictedNotice({ text }){
   return (
     <div className="df-card" style={{padding:24, display:"flex", alignItems:"center", gap:12, background:"var(--neutral-bg)", border:"none"}}>
       <div style={{color:"var(--ink-faint)"}}><Icon.user/></div>
@@ -1034,7 +1042,7 @@ function InfoField({ label, value }){
 function InfoGrid({ children }){
   return <div className="df-card" style={{padding:22, display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"18px 20px"}}>{children}</div>;
 }
-function BasicInfoGrid({ emp }){
+export function BasicInfoGrid({ emp }){
   return (
     <InfoGrid>
       <InfoField label="Full name" value={emp.name}/>
@@ -1055,7 +1063,7 @@ function BasicInfoGrid({ emp }){
     </InfoGrid>
   );
 }
-function PrivateInfoGrid({ emp }){
+export function PrivateInfoGrid({ emp }){
   const p = emp.privateInfo;
   return (
     <InfoGrid>
@@ -1068,7 +1076,7 @@ function PrivateInfoGrid({ emp }){
     </InfoGrid>
   );
 }
-function SalaryBreakdown({ emp, employeeView, isAdmin }){
+export function SalaryBreakdown({ emp, employeeView, isAdmin }){
   const [s, setS] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -1078,8 +1086,8 @@ function SalaryBreakdown({ emp, employeeView, isAdmin }){
   const loadSalary = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getEmployeeSalary(emp.id);
-      setS(data);
+      const res = await getEmployeeSalary(emp.id);
+      setS(res.data || res);
     } catch (err) {
       console.error(err);
       toast("Failed to load salary structure.", "err");
@@ -1098,7 +1106,7 @@ function SalaryBreakdown({ emp, employeeView, isAdmin }){
     let active = true;
     calculateSalaryPreview(Number(wageInput) || 0)
       .then(res => {
-        if (active) setPreviewSalary(res);
+        if (active) setPreviewSalary(res.data || res);
       })
       .catch(err => {
         console.error(err);
@@ -1177,7 +1185,7 @@ function SalaryBreakdown({ emp, employeeView, isAdmin }){
     </div>
   );
 }
-function AttendanceTable({ rows }){
+export function AttendanceTable({ rows }){
   if (rows.length===0) return <EmptyState title="No attendance records yet" subtitle="Records appear once check-ins begin."/>;
   return (
     <div className="df-card df-scrollbar" style={{padding:"6px 20px 14px", maxHeight:420, overflowY:"auto"}}>
@@ -1200,7 +1208,7 @@ function AttendanceTable({ rows }){
     </div>
   );
 }
-function LeaveHistoryTable({ rows, allocations, empId }){
+export function LeaveHistoryTable({ rows, allocations, empId }){
   const [allocState, setAllocState] = useState(allocations || []);
   const [loading, setLoading] = useState(false);
 
@@ -1254,7 +1262,7 @@ function LeaveHistoryTable({ rows, allocations, empId }){
   );
 }
 
-function AdminTimeOffPage({ leaveRequests, employees, decideLeave, isLoading }){
+export function AdminTimeOffPage({ leaveRequests, employees, decideLeave, isLoading }){
   const [filter, setFilter] = useState("Pending");
   const [decisionModal, setDecisionModal] = useState(null);
   const rows = leaveRequests.filter(r=> filter==="All" || r.status===filter)
@@ -1276,7 +1284,7 @@ function AdminTimeOffPage({ leaveRequests, employees, decideLeave, isLoading }){
             <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Reason</th><th>Attachment</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {rows.map(r=>{
-                const emp = employees.find(e=>e.id===r.employeeId);
+                const emp = employees.find(e=>e.id===r.employeeId) || { id: "", name: "Unknown" };
                 return (
                   <tr key={r.id}>
                     <td><div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={emp?.name || r.employeeId} size={26}/>{emp?.name || r.employeeId}</div></td>
@@ -1312,7 +1320,7 @@ function AdminTimeOffPage({ leaveRequests, employees, decideLeave, isLoading }){
   );
 }
 
-function DecisionModal({ data, onClose, onConfirm }){
+export function DecisionModal({ data, onClose, onConfirm }){
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -1359,7 +1367,7 @@ function DecisionModal({ data, onClose, onConfirm }){
   );
 }
 
-function RequestTimeOffModal({ allocations, onClose, onSubmit }){
+export function RequestTimeOffModal({ allocations, onClose, onSubmit }){
   const [form, setForm] = useState({ leaveTypeId:"pto", startDate:"", endDate:"", reason:"", attachmentFile:null, attachment:"" });
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -1467,7 +1475,7 @@ function RequestTimeOffModal({ allocations, onClose, onSubmit }){
   );
 }
 
-function AdminPayrollPage({ employees, attendance, todayStr, salaries }){
+export function AdminPayrollPage({ employees, attendance, todayStr, salaries }){
   const employeesWithSalary = useMemo(() => {
     return employees.map(e => ({
       ...e,
@@ -1524,7 +1532,7 @@ function AdminPayrollPage({ employees, attendance, todayStr, salaries }){
   );
 }
 
-function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
+export function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
   const [q, setQ] = useState("");
   const [log, setLog] = useState([
     { role:"assistant", text:"Ask me things like \"who had the most absences this month?\" or \"summarize pending leave requests.\" I answer only from Dayflow's own data." }
@@ -1549,7 +1557,7 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
       else {
         const lines = pending.map(r=>{
           const emp = employees.find(e=>e.id===r.employeeId);
-          return `${emp?.name} — ${LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name} (${r.startDate} → ${r.endDate})`;
+          return `${emp?.name || "Unknown"} — ${LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name} (${r.startDate} → ${r.endDate})`;
         });
         answer = `${pending.length} pending request(s): ${lines.join("; ")}.`;
       }
@@ -1570,7 +1578,7 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
       leaveRequests.filter(r=>r.status==="Approved").forEach(r=>{ map[r.employeeId]=(map[r.employeeId]||0)+1; });
       const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]);
       if (sorted.length===0) answer = "No approved leave on record yet.";
-      else { const emp = employees.find(e=>e.id===sorted[0][0]); answer = `${emp?.name} has taken the most approved leave requests (${sorted[0][1]}).`; }
+      else { const emp = employees.find(e=>e.id===sorted[0][0]); answer = `${emp?.name || "Unknown"} has taken the most approved leave requests (${sorted[0][1]}).`; }
     } else {
       answer = "I can answer questions about absences, pending requests, today's attendance, and payroll — try one of the suggestions below.";
     }
@@ -1607,7 +1615,7 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
   );
 }
 
-function CreateEmployeeModal({ onClose, onCreate }){
+export function CreateEmployeeModal({ onClose, onCreate }){
   const [form, setForm] = useState({
     firstName:"", lastName:"", email:"", mobile:"", department:DEPARTMENTS[0], position:"",
     manager:"", location:LOCATIONS[0], gender:"", monthlyWage:60000,
@@ -1656,7 +1664,7 @@ function CreateEmployeeModal({ onClose, onCreate }){
   );
 }
 
-function CredentialsModal({ result, onClose, onLoginAs }){
+export function CredentialsModal({ result, onClose, onLoginAs }){
   const { employee, loginId, tempPassword } = result;
   return (
     <Modal onClose={onClose} width={440}>
@@ -1738,7 +1746,6 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
     { id:"payroll", label:"Payroll", icon:Icon.wallet },
   ];
   const todayA = getTodayAttendance(me.id);
-  const allocations = getAllocations(me.id);
   
   // TODO: leave request field shape pending Member 3 confirmation.
   const myLeave = useMemo(() => leaveRequests.filter(r => r.employeeId === me.id), [leaveRequests, me.id]);
@@ -1790,7 +1797,7 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
   );
 }
 
-function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut, onRequestTimeOff, onGoTo }){
+export function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut, onRequestTimeOff, onGoTo }){
   const checkedIn = !!(todayA && todayA.checkIn);
   const checkedOut = !!(todayA && todayA.checkOut);
   const recentLeave = myLeave.slice(0,3);
@@ -1875,78 +1882,8 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
   );
 }
 
-function RequestTimeOffModal({ allocations, onClose, onSubmit }){
-  const [form, setForm] = useState({ leaveTypeId:"pto", startDate:"", endDate:"", reason:"", attachment:"" });
-  const [err, setErr] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
-  function set(k,v){ setForm(f=>({...f,[k]:v})); }
-
-  async function submit(e){
-    e.preventDefault();
-    setErr("");
-    if (!form.startDate || !form.endDate || !form.reason){
-      setErr("Start date, end date, and reason are required.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await onSubmit(form);
-    } catch (error) {
-      setErr(error.message || "Failed to submit request.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const isSickSelected = form.leaveTypeId === "sick";
-
-  return (
-    <Modal onClose={onClose} width={460}>
-      <ModalHeader title="Request time off" onClose={onClose}/>
-      <form onSubmit={submit}>
-        <div style={{padding:22, display:"flex", flexDirection:"column", gap:14}}>
-          {err && (
-            <div style={{background:"var(--danger-bg)", color:"var(--danger)", padding:"10px 14px", borderRadius:9, fontSize:12.5, fontWeight:600}}>
-              {err}
-            </div>
-          )}
-          <div>
-            <label className="df-label">Time-off type</label>
-            <select className="df-select" value={form.leaveTypeId} onChange={e=>set("leaveTypeId",e.target.value)}>
-              {LEAVE_TYPES.map(t=>{
-                const bal = (allocations || []).find(a=>a.id===t.id);
-                return <option key={t.id} value={t.id}>{t.name}{bal?` (${bal.remaining} left)`:""}</option>;
-              })}
-            </select>
-          </div>
-          <div style={{display:"flex", gap:12}}>
-            <div style={{flex:1}}><label className="df-label">Start date</label><input className="df-input" type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/></div>
-            <div style={{flex:1}}><label className="df-label">End date</label><input className="df-input" type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/></div>
-          </div>
-          <div>
-            <label className="df-label">Reason / remarks</label>
-            <textarea className="df-textarea" rows={3} value={form.reason} onChange={e=>set("reason",e.target.value)}/>
-          </div>
-          <div>
-            <label className="df-label">
-              Attach document {isSickSelected ? <span style={{color:"var(--danger)"}}>* (Required for Sick Leave)</span> : "(optional)"}
-            </label>
-            <input className="df-input" type="file" onChange={e=>set("attachment", e.target.files[0]?.name || "")}/>
-          </div>
-        </div>
-        <div style={{padding:22, display:"flex", gap:10, justifyContent:"flex-end", borderTop:"1px solid var(--line)"}}>
-          <button type="button" className="df-btn df-btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button type="submit" className="df-btn df-btn-dawn" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit request"}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function AdminAnalyticsPage({ employees, attendance, leaveRequests, salaries }){
+export function AdminAnalyticsPage({ employees, attendance, leaveRequests, salaries }){
   const [range, setRange] = useState(7); // 7 or 30 days
 
   // 1. Attendance stats over range (7 or 30 working days)
