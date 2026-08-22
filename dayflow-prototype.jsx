@@ -1,8 +1,17 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
+import {
+  listEmployees,
+  getAllAttendance,
+  getAllLeaveRequests,
+  reviewLeaveRequest,
+  createEmployee as createEmployeeApi,
+  getEmployeeSalary,
+  calculateSalaryPreview
+} from "./lib/dayflow-api";
 
 /* =========================================================================
    DAYFLOW — HRMS PROTOTYPE
@@ -129,26 +138,7 @@ function makeTempPassword(){
   return "Day@" + Math.floor(1000 + Math.random()*9000);
 }
 
-// Reusable salary calculator — single source of truth for all payroll math.
-// ASSUMPTION (undocumented in reference design, chosen for hackathon simplicity):
-// Basic = 50% of Monthly Wage; HRA = 50% of Basic (per reference design);
-// Standard Allowance = 10% of Basic; Performance Bonus = 8% of Basic;
-// LTA = 8.33% of Basic (1/12); Fixed Allowance balances Gross back to Monthly Wage.
-// PF (employee) = 12% of Basic; Professional Tax = flat ₹200/month (typical India slab).
-function computeSalary(monthlyWage){
-  const basic = Math.round(monthlyWage * 0.5);
-  const hra = Math.round(basic * 0.5);
-  const standardAllowance = Math.round(basic * 0.10);
-  const performanceBonus = Math.round(basic * 0.08);
-  const lta = Math.round(basic * 0.0833);
-  const runningTotal = basic + hra + standardAllowance + performanceBonus + lta;
-  const fixedAllowance = Math.max(monthlyWage - runningTotal, 0);
-  const gross = basic + hra + standardAllowance + performanceBonus + lta + fixedAllowance;
-  const pf = Math.round(basic * 0.12);
-  const professionalTax = 200;
-  const net = gross - pf - professionalTax;
-  return { basic, hra, standardAllowance, performanceBonus, lta, fixedAllowance, gross, pf, professionalTax, net };
-}
+// computeSalary is now imported from "./src/lib/salary"
 
 /* ------------------------------- Seed data ------------------------------- */
 const DEPARTMENTS = ["Engineering","Design","Sales","Marketing","Support"];
@@ -181,7 +171,6 @@ function buildSeed(){
   EMP_SEED.forEach((e, idx) => {
     const { code, serial } = genLoginId(e.first, e.last, e.join);
     const id = "emp_" + (idx+1);
-    const salary = computeSalary(e.wage);
     employees.push({
       id, loginId:code, serial,
       firstName:e.first, lastName:e.last, name:`${e.first} ${e.last}`,
@@ -199,7 +188,7 @@ function buildSeed(){
         skills: idx%2===0 ? ["Communication","Problem Solving","Ownership"] : ["Leadership","Stakeholder Mgmt","Analytics"],
         certifications: idx%3===0 ? ["PMP Foundations"] : [],
       },
-      monthlyWage:e.wage, salary,
+      monthlyWage:e.wage,
       active:true,
     });
     users.push({ loginId:code, password:"Welcome@2026", role:"employee", employeeId:id });
@@ -223,7 +212,7 @@ function buildSeed(){
     employees.forEach((emp, idx) => {
       const roll = (hashStr(emp.id+dateStr) % 100 + 100) % 100;
       if (roll < 6) {
-        attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn:null, checkOut:null, workHours:0, extraHours:0, status:"Absent" });
+        attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn:null, checkOut:null, workHours:0, extraHours:0, status:"absent" });
         return;
       }
       const inHour = 9 + (roll % 3 === 0 ? 1 : 0);
@@ -234,7 +223,7 @@ function buildSeed(){
       const checkOut = new Date(d); checkOut.setHours(outHour, outMin, 0);
       const workHours = +(((checkOut - checkIn) / 3600000)).toFixed(1);
       const extraHours = +Math.max(0, workHours-8).toFixed(1);
-      const status = workHours < 5 ? "Half-day" : "Present";
+      const status = workHours < 5 ? "half_day" : "present";
       attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn, checkOut, workHours, extraHours, status });
     });
   }
@@ -262,7 +251,7 @@ function buildSeed(){
   const todayStr = fmtDate(today);
   [employees[0], employees[3]].forEach(emp => {
     const ci = new Date(); ci.setHours(9,20,0);
-    attendance.push({ employeeId:emp.id, date:todayStr, day:dayName(today), checkIn:ci, checkOut:null, workHours:0, extraHours:0, status:"Present" });
+    attendance.push({ employeeId:emp.id, date:todayStr, day:dayName(today), checkIn:ci, checkOut:null, workHours:0, extraHours:0, status:"present" });
   });
 
   return { employees, users, attendance, leaveAllocations, leaveRequests, genLoginId, todayStr };
@@ -275,6 +264,7 @@ const Icon = {
   clock:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><circle cx="10" cy="10" r="7.3" stroke="currentColor" strokeWidth="1.6"/><path d="M10 6v4.3l2.8 1.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   calendar:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><rect x="2.5" y="4" width="15" height="13" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   wallet:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><rect x="2.5" y="5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M2.5 8.5h15" stroke="currentColor" strokeWidth="1.6"/><circle cx="14" cy="12" r="1.2" fill="currentColor"/></svg>,
+  chart:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><path d="M3.3 17V3.3m0 13.4h13.4M6.7 13.3v-4m3.3 4v-7.3m3.3 7.3v-10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   user:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><circle cx="10" cy="6.7" r="3.2" stroke="currentColor" strokeWidth="1.6"/><path d="M3.3 17c0-3.6 3-5.8 6.7-5.8s6.7 2.2 6.7 5.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   logout:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><path d="M7.5 17.5H4.8a1.3 1.3 0 01-1.3-1.3V3.8a1.3 1.3 0 011.3-1.3h2.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M13 14l4-4-4-4M17 10H7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   bell:(p)=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}><path d="M5 8a5 5 0 0110 0c0 4 1.5 5 1.5 5h-13S5 12 5 8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M8.2 15.5a1.9 1.9 0 003.6 0" stroke="currentColor" strokeWidth="1.6"/></svg>,
@@ -368,16 +358,20 @@ function FlowRing({ checkedIn, checkedOut, size=132 }){
 }
 
 /* ================================ APP ==================================== */
+/* ================================ APP ==================================== */
 export default function DayflowApp(){
   const seedRef = useRef(null);
   if (!seedRef.current) seedRef.current = buildSeed();
   const seed = seedRef.current;
 
-  const [employees, setEmployees] = useState(seed.employees);
+  const [employees, setEmployees] = useState([]);
   const [users, setUsers] = useState(seed.users);
-  const [attendance, setAttendance] = useState(seed.attendance);
+  const [attendance, setAttendance] = useState([]);
   const [leaveAllocations, setLeaveAllocations] = useState(seed.leaveAllocations);
-  const [leaveRequests, setLeaveRequests] = useState(seed.leaveRequests);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [salaries, setSalaries] = useState({});
+  const [loading, setLoading] = useState(true);
+
   const todayStr = seed.todayStr;
   const today = new Date();
 
@@ -388,6 +382,41 @@ export default function DayflowApp(){
     setToasts(t=>[...t, {id, msg, tone}]);
     setTimeout(()=> setToasts(t=>t.filter(x=>x.id!==id)), 3200);
   }
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [empList, attList, leaveList] = await Promise.all([
+        listEmployees(),
+        getAllAttendance(),
+        getAllLeaveRequests()
+      ]);
+
+      const salaryMap = {};
+      await Promise.all((empList || []).map(async (e) => {
+        try {
+          const salary = await getEmployeeSalary(e.id);
+          salaryMap[e.id] = salary;
+        } catch (err) {
+          console.error("Failed to load salary for " + e.id, err);
+        }
+      }));
+
+      setEmployees(empList || []);
+      setAttendance(attList || []);
+      setLeaveRequests(leaveList || []);
+      setSalaries(salaryMap);
+    } catch (err) {
+      console.error("Error loading database data:", err);
+      toast("Failed to load data from database.", "err");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   function login(loginId, password){
     const u = users.find(u => u.loginId.toLowerCase()===String(loginId).trim().toLowerCase());
@@ -401,13 +430,18 @@ export default function DayflowApp(){
 
   /* ------------------------------ Derived data ------------------------------ */
   function getTodayAttendance(empId){ return attendance.find(a=>a.employeeId===empId && a.date===todayStr); }
-  function getEmpLeaveToday(empId){
-    return leaveRequests.find(r => r.employeeId===empId && r.status==="Approved" && overlaps(todayStr, r.startDate, r.endDate));
-  }
   function getTodayStatus(empId){
-    if (getEmpLeaveToday(empId)) return "On Leave";
+    // TODO: leave request field shape pending Member 3 confirmation.
+    const onLeave = leaveRequests.some(r => r.employeeId===empId && r.status==="Approved" && overlaps(todayStr, r.startDate, r.endDate));
+    if (onLeave) return "On Leave";
+
     const a = getTodayAttendance(empId);
-    if (a && a.checkIn) return "Present";
+    if (a) {
+      if (a.status === "present") return "Present";
+      if (a.status === "half_day") return "Half-day";
+      if (a.status === "leave") return "On Leave";
+      if (a.status === "absent") return "Absent";
+    }
     return "Not Checked In";
   }
   function getAllocations(empId){
@@ -416,18 +450,12 @@ export default function DayflowApp(){
       return { ...lt, used:a.used, remaining: a.allocated - a.used };
     });
   }
-  function empAttendanceHistory(empId){
-    return attendance.filter(a=>a.employeeId===empId).sort((a,b)=> a.date<b.date?1:-1);
-  }
-  function empLeaveHistory(empId){
-    return leaveRequests.filter(r=>r.employeeId===empId).sort((a,b)=> a.createdAt<b.createdAt?1:-1);
-  }
 
   /* ------------------------------- Actions (RBAC-guarded) ------------------------------- */
   function checkIn(empId){
     if (!(session && (session.role==="admin" || session.employeeId===empId))) return toast("Not authorized.","err");
     if (getTodayAttendance(empId)) return toast("Already checked in today.","err");
-    const rec = { employeeId:empId, date:todayStr, day:dayName(today), checkIn:new Date(), checkOut:null, workHours:0, extraHours:0, status:"Present" };
+    const rec = { employeeId:empId, date:todayStr, day:dayName(today), checkIn:new Date(), checkOut:null, workHours:0, extraHours:0, status:"present" };
     setAttendance(a=>[...a, rec]);
     toast("Checked in — have a great day!");
   }
@@ -438,61 +466,74 @@ export default function DayflowApp(){
       const checkOut = new Date();
       const workHours = +(((checkOut - a.checkIn)/3600000)).toFixed(1);
       const extraHours = +Math.max(0, workHours-8).toFixed(1);
-      return { ...a, checkOut, workHours, extraHours, status: workHours<5?"Half-day":"Present" };
+      return { ...a, checkOut, workHours, extraHours, status: workHours<5?"half_day":"present" };
     }));
     toast("Checked out. See you tomorrow!");
   }
   function submitLeaveRequest(empId, payload){
     if (!(session && (session.role==="admin" || session.employeeId===empId))) return toast("Not authorized.","err");
+    // TODO: leave request field shape pending Member 3 confirmation.
     const rec = { id:"lr_"+Math.random().toString(36).slice(2,8), employeeId:empId, status:"Pending", comment:"", createdAt:fmtDate(today), ...payload };
     setLeaveRequests(r=>[rec, ...r]);
     toast("Time off request submitted.");
   }
-  function decideLeave(reqId, decision, comment){
+  async function decideLeave(reqId, decision, comment){
     if (!(session && session.role==="admin")) return toast("Only Admin/HR can approve or reject requests.","err");
-    setLeaveRequests(list => list.map(r=>{
-      if (r.id!==reqId) return r;
-      if (decision==="Approved"){
-        setLeaveAllocations(allocs => allocs.map(a => {
-          if (a.employeeId!==r.employeeId || a.leaveTypeId!==r.leaveTypeId) return a;
-          const days = Math.round((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;
-          return { ...a, used: a.used + days };
-        }));
-      }
-      return { ...r, status:decision, comment: comment || r.comment };
-    }));
-    toast(`Request ${decision.toLowerCase()}.`, decision==="Rejected"?"err":"ok");
+    try {
+      await reviewLeaveRequest(reqId, decision, comment);
+      toast(`Request ${decision.toLowerCase()}.`, decision==="Rejected"?"err":"ok");
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      toast("Failed to review leave request.", "err");
+    }
   }
-  function createEmployee(payload){
+  async function createEmployee(payload){
     if (!(session && session.role==="admin")) return toast("Only Admin/HR can create employees.","err");
     const joinYear = String(new Date().getFullYear());
     const { code, serial } = seed.genLoginId(payload.firstName, payload.lastName, joinYear);
     const tempPassword = makeTempPassword();
-    const id = "emp_" + (employees.length+1) + "_" + Math.random().toString(36).slice(2,5);
-    const salary = computeSalary(payload.monthlyWage);
-    const emp = {
-      id, loginId:code, serial,
-      firstName:payload.firstName, lastName:payload.lastName, name:`${payload.firstName} ${payload.lastName}`,
-      email: payload.email || `${payload.firstName.toLowerCase()}.${payload.lastName.toLowerCase()}@dayflow.com`,
-      personalEmail:"", mobile:payload.mobile||"—",
-      department:payload.department, position:payload.position, manager:payload.manager||"—",
-      company:COMPANY, location:payload.location||LOCATIONS[0],
-      dob:"—", address:"—", gender:payload.gender||"—", nationality:"Indian", maritalStatus:"—",
-      joinYear, joinDate:fmtDate(today),
-      privateInfo:{ pan:"—", uan:"—", bank:"—", resume:"—", skills:[], certifications:[] },
-      monthlyWage:payload.monthlyWage, salary, active:true,
-    };
-    setEmployees(list=>[...list, emp]);
-    setUsers(list=>[...list, { loginId:code, password:tempPassword, role:"employee", employeeId:id }]);
-    setLeaveAllocations(list=>[...list,
-      { employeeId:id, leaveTypeId:"pto", allocated:24, used:0 },
-      { employeeId:id, leaveTypeId:"sick", allocated:7, used:0 },
-    ]);
-    toast(`Employee created — Login ID ${code}`);
-    return { employee:emp, loginId:code, tempPassword };
+    try {
+      const apiPayload = {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email || `${payload.firstName.toLowerCase()}.${payload.lastName.toLowerCase()}@dayflow.com`,
+        mobile: payload.mobile || "—",
+        loginId: code,
+        department: payload.department,
+        position: payload.position,
+        location: payload.location || LOCATIONS[0],
+        gender: payload.gender || "—",
+        nationality: "Indian",
+        maritalStatus: "—",
+        joiningDate: fmtDate(new Date()),
+        monthlyWage: Number(payload.monthlyWage)
+      };
+
+      const newEmp = await createEmployeeApi(apiPayload);
+      toast(`Employee created — Login ID ${code}`);
+      
+      setUsers(list => [...list, { loginId: code, password: tempPassword, role: "employee", employeeId: newEmp.id }]);
+
+      await loadData();
+      return { employee: newEmp, loginId: code, tempPassword };
+    } catch (err) {
+      console.error("Failed to create employee:", err);
+      toast("Failed to create employee.", "err");
+      throw err;
+    }
   }
 
   /* --------------------------------- Render --------------------------------- */
+  if (loading) {
+    return (
+      <div className="df-app" style={{padding:40, display:"flex", alignItems:"center", justifyContent:"center"}}>
+        <style>{TOKENS}</style>
+        <div style={{fontFamily:"var(--font-display)", fontWeight:700, fontSize:18, color:"var(--ink-soft)"}}>Loading Dayflow HRMS...</div>
+      </div>
+    );
+  }
+
   if (!session){
     return <div className="df-app df-scrollbar"><style>{TOKENS}</style><LoginScreen onLogin={login} employees={employees}/></div>;
   }
@@ -511,9 +552,8 @@ export default function DayflowApp(){
       {session.role==="admin"
         ? <AdminShell
             employees={employees} users={users} attendance={attendance} leaveRequests={leaveRequests}
-            leaveAllocations={leaveAllocations} todayStr={todayStr}
+            leaveAllocations={leaveAllocations} todayStr={todayStr} salaries={salaries}
             getTodayStatus={getTodayStatus} getAllocations={getAllocations}
-            empAttendanceHistory={empAttendanceHistory} empLeaveHistory={empLeaveHistory}
             createEmployee={createEmployee} decideLeave={decideLeave} onLogout={logout}
             switchToEmployee={(empId)=>setSession({role:"employee", employeeId:empId})}
           />
@@ -522,7 +562,6 @@ export default function DayflowApp(){
             employees={employees}
             attendance={attendance} leaveRequests={leaveRequests}
             getTodayAttendance={getTodayAttendance} getTodayStatus={getTodayStatus} getAllocations={getAllocations}
-            empAttendanceHistory={empAttendanceHistory} empLeaveHistory={empLeaveHistory}
             checkIn={checkIn} checkOut={checkOut} submitLeaveRequest={submitLeaveRequest}
             onLogout={logout}
           />
@@ -605,7 +644,7 @@ function LoginScreen({ onLogin, employees }){
 /* ============================== ADMIN SHELL ================================ */
 function AdminShell(props){
   const { employees, attendance, leaveRequests, todayStr, getTodayStatus, getAllocations,
-    empAttendanceHistory, empLeaveHistory, createEmployee, decideLeave, onLogout, switchToEmployee } = props;
+    createEmployee, decideLeave, onLogout, switchToEmployee, salaries } = props;
   const [page, setPage] = useState("dashboard");
   const [selectedEmpId, setSelectedEmpId] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -616,6 +655,7 @@ function AdminShell(props){
     { id:"employees", label:"Employees", icon:Icon.users },
     { id:"timeoff", label:"Time Off", icon:Icon.calendar },
     { id:"payroll", label:"Payroll", icon:Icon.wallet },
+    { id:"analytics", label:"Analytics", icon:Icon.chart },
     { id:"ask", label:"Ask Dayflow", icon:Icon.spark },
   ];
 
@@ -639,8 +679,8 @@ function AdminShell(props){
           <EmployeeDetailPage
             emp={employees.find(e=>e.id===selectedEmpId)} isAdmin
             getTodayStatus={getTodayStatus} getAllocations={getAllocations}
-            attendanceHistory={empAttendanceHistory(selectedEmpId)}
-            leaveHistory={empLeaveHistory(selectedEmpId)}
+            attendanceHistory={attendance.filter(a => a.employeeId === selectedEmpId)}
+            leaveHistory={leaveRequests.filter(r => r.employeeId === selectedEmpId)}
             onBack={()=>setPage("employees")}
             onLoginAs={()=>switchToEmployee(selectedEmpId)}
           />
@@ -649,7 +689,10 @@ function AdminShell(props){
           <AdminTimeOffPage leaveRequests={leaveRequests} employees={employees} decideLeave={decideLeave}/>
         )}
         {page==="payroll" && (
-          <AdminPayrollPage employees={employees} attendance={attendance} todayStr={todayStr}/>
+          <AdminPayrollPage employees={employees} attendance={attendance} todayStr={todayStr} salaries={salaries}/>
+        )}
+        {page==="analytics" && (
+          <AdminAnalyticsPage employees={employees} attendance={attendance} leaveRequests={leaveRequests} salaries={salaries}/>
         )}
         {page==="ask" && <AskDayflow employees={employees} attendance={attendance} leaveRequests={leaveRequests} getTodayStatus={getTodayStatus}/>}
       </div>
@@ -703,9 +746,18 @@ function Sidebar({ nav, page, setPage, title, roleLabel, name, onLogout }){
 
 function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTodayStatus, onOpenEmployee, onGoTimeoff }){
   const total = employees.length;
-  const presentToday = employees.filter(e=>getTodayStatus(e.id)==="Present").length;
-  const onLeaveToday = employees.filter(e=>getTodayStatus(e.id)==="On Leave").length;
-  const notCheckedIn = total - presentToday - onLeaveToday;
+  const presentToday = employees.filter(e=>{
+    const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
+    return a && (a.status === "present" || a.status === "half_day");
+  }).length;
+  const onLeaveToday = employees.filter(e=>{
+    const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
+    const hasLeaveRow = a && a.status === "leave";
+    // TODO: leave request field shape pending Member 3 confirmation.
+    const hasApprovedLeave = leaveRequests.some(r => r.employeeId === e.id && r.status === "Approved" && overlaps(todayStr, r.startDate, r.endDate));
+    return hasLeaveRow || hasApprovedLeave;
+  }).length;
+  const notCheckedIn = employees.filter(e => !attendance.some(a => a.employeeId === e.id && a.date === todayStr)).length;
   const pending = leaveRequests.filter(r=>r.status==="Pending");
 
   const last7 = useMemo(()=>{
@@ -714,8 +766,8 @@ function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTod
       const d = new Date(); d.setDate(d.getDate()-i);
       if (isWeekend(d)) continue;
       const ds = fmtDate(d);
-      const present = attendance.filter(a=>a.date===ds && a.checkIn).length;
-      const absent = attendance.filter(a=>a.date===ds && a.status==="Absent").length;
+      const present = attendance.filter(a=>a.date===ds && (a.status==="present" || a.status==="half_day")).length;
+      const absent = attendance.filter(a=>a.date===ds && a.status==="absent").length;
       days.push({ day: d.toLocaleDateString("en-US",{weekday:"short"}), Present:present, Absent:absent });
     }
     return days;
@@ -964,36 +1016,111 @@ function PrivateInfoGrid({ emp }){
     </InfoGrid>
   );
 }
-function SalaryBreakdown({ emp, employeeView }){
-  const s = emp.salary;
+function SalaryBreakdown({ emp, employeeView, isAdmin }){
+  const [s, setS] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [wageInput, setWageInput] = useState(emp.monthlyWage || 0);
+  const [previewSalary, setPreviewSalary] = useState(null);
+
+  const loadSalary = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getEmployeeSalary(emp.id);
+      setS(data);
+    } catch (err) {
+      console.error(err);
+      toast("Failed to load salary structure.", "err");
+    } finally {
+      setLoading(false);
+    }
+  }, [emp.id]);
+
+  useEffect(() => {
+    loadSalary();
+  }, [loadSalary]);
+
+  // Fetch preview when wageInput changes
+  useEffect(() => {
+    if (!isEditing) return;
+    let active = true;
+    calculateSalaryPreview(Number(wageInput) || 0)
+      .then(res => {
+        if (active) setPreviewSalary(res);
+      })
+      .catch(err => {
+        console.error(err);
+      });
+    return () => { active = false; };
+  }, [wageInput, isEditing]);
+
+  const activeSalary = isEditing ? previewSalary : s;
+
+  if (loading) return <div style={{padding:20, color:"var(--ink-soft)"}}>Loading salary structure...</div>;
+  if (!activeSalary) return <div style={{padding:20, color:"var(--danger)"}}>Failed to load salary details.</div>;
+
   return (
-    <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16}}>
-      <div className="df-card" style={{padding:22}}>
-        <h3 style={{fontSize:14, margin:"0 0 14px"}}>Earnings</h3>
-        {[["Basic Salary",s.basic],["HRA",s.hra],["Standard Allowance",s.standardAllowance],
-          ["Performance Bonus",s.performanceBonus],["Leave Travel Allowance",s.lta],["Fixed Allowance",s.fixedAllowance]]
-          .map(([label,val])=>(
-          <div key={label} style={{display:"flex", justifyContent:"space-between", padding:"7px 0", fontSize:13.5, borderBottom:"1px solid var(--line)"}}>
-            <span style={{color:"var(--ink-soft)"}}>{label}</span><span className="df-mono">{fmtINR(val)}</span>
-          </div>
-        ))}
-        <div style={{display:"flex", justifyContent:"space-between", padding:"12px 0 0", fontSize:14, fontWeight:700}}>
-          <span>Gross Salary</span><span className="df-mono">{fmtINR(s.gross)}</span>
+    <div style={{display:"flex", flexDirection:"column", gap:18}}>
+      {isAdmin && !employeeView && (
+        <div className="df-card" style={{padding:20, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+          {isEditing ? (
+            <div style={{display:"flex", gap:14, alignItems:"center", width:"100%"}}>
+              <div style={{flex:1}}>
+                <label className="df-label">Monthly Wage (INR)</label>
+                <input type="number" className="df-input" value={wageInput} onChange={e => setWageInput(e.target.value)} />
+              </div>
+              <div style={{display:"flex", gap:10, alignSelf:"flex-end"}}>
+                <button className="df-btn df-btn-success" onClick={() => {
+                  // TODO: confirm updateEmployeeSalary(employeeId, monthlyWage) exists with Member 1 before wiring save.
+                  toast("Salary update saved (stubbed).");
+                  setIsEditing(false);
+                }}>Save</button>
+                <button className="df-btn df-btn-ghost" onClick={() => {
+                  setIsEditing(false);
+                  setWageInput(emp.monthlyWage || 0);
+                }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <span style={{fontSize:13, color:"var(--ink-soft)", fontWeight:600}}>Salary Administration</span>
+                <p style={{margin:"2px 0 0", fontSize:12, color:"var(--ink-faint)"}}>Manage monthly wage and allowance structure.</p>
+              </div>
+              <button className="df-btn df-btn-ghost df-btn-sm" onClick={() => setIsEditing(true)}>Edit Structure</button>
+            </>
+          )}
         </div>
-      </div>
-      <div className="df-card" style={{padding:22}}>
-        <h3 style={{fontSize:14, margin:"0 0 14px"}}>Deductions</h3>
-        {[["Provident Fund",s.pf],["Professional Tax",s.professionalTax]].map(([label,val])=>(
-          <div key={label} style={{display:"flex", justifyContent:"space-between", padding:"7px 0", fontSize:13.5, borderBottom:"1px solid var(--line)"}}>
-            <span style={{color:"var(--ink-soft)"}}>{label}</span><span className="df-mono">−{fmtINR(val)}</span>
+      )}
+
+      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16}}>
+        <div className="df-card" style={{padding:22}}>
+          <h3 style={{fontSize:14, margin:"0 0 14px"}}>Earnings {isEditing && <span style={{color:"var(--brand-dawn)", fontSize:11}}>(Preview)</span>}</h3>
+          {[["Basic Salary",activeSalary.basic],["HRA",activeSalary.hra],["Standard Allowance",activeSalary.standardAllowance],
+            ["Performance Bonus",activeSalary.performanceBonus],["Leave Travel Allowance",activeSalary.lta],["Fixed Allowance",activeSalary.fixedAllowance]]
+            .map(([label,val])=>(
+            <div key={label} style={{display:"flex", justifyContent:"space-between", padding:"7px 0", fontSize:13.5, borderBottom:"1px solid var(--line)"}}>
+              <span style={{color:"var(--ink-soft)"}}>{label}</span><span className="df-mono">{fmtINR(val)}</span>
+            </div>
+          ))}
+          <div style={{display:"flex", justifyContent:"space-between", padding:"12px 0 0", fontSize:14, fontWeight:700}}>
+            <span>Gross Salary</span><span className="df-mono">{fmtINR(activeSalary.gross)}</span>
           </div>
-        ))}
-        <div style={{display:"flex", justifyContent:"space-between", padding:"12px 0 0", fontSize:16, fontWeight:700, color:"var(--success)"}}>
-          <span>Net Salary / month</span><span className="df-mono">{fmtINR(s.net)}</span>
         </div>
-        <p style={{fontSize:11.5, color:"var(--ink-faint)", marginTop:14, lineHeight:1.5}}>
-          Wage type: Monthly · {fmtINR(emp.monthlyWage)}/mo. Figures are a hackathon demonstration of salary structure, not statutory payroll advice.
-        </p>
+        <div className="df-card" style={{padding:22}}>
+          <h3 style={{fontSize:14, margin:"0 0 14px"}}>Deductions {isEditing && <span style={{color:"var(--brand-dawn)", fontSize:11}}>(Preview)</span>}</h3>
+          {[["Provident Fund",activeSalary.pf],["Professional Tax",activeSalary.professionalTax]].map(([label,val])=>(
+            <div key={label} style={{display:"flex", justifyContent:"space-between", padding:"7px 0", fontSize:13.5, borderBottom:"1px solid var(--line)"}}>
+              <span style={{color:"var(--ink-soft)"}}>{label}</span><span className="df-mono">−{fmtINR(val)}</span>
+            </div>
+          ))}
+          <div style={{display:"flex", justifyContent:"space-between", padding:"12px 0 0", fontSize:16, fontWeight:700, color:"var(--success)"}}>
+            <span>Net Salary / month</span><span className="df-mono">{fmtINR(activeSalary.net)}</span>
+          </div>
+          <p style={{fontSize:11.5, color:"var(--ink-faint)", marginTop:14, lineHeight:1.5}}>
+            Wage type: Monthly · {fmtINR(isEditing ? Number(wageInput) : emp.monthlyWage)}/mo. Figures are a hackathon demonstration of salary structure, not statutory payroll advice.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -1128,14 +1255,21 @@ function DecisionModal({ data, onClose, onConfirm }){
   );
 }
 
-function AdminPayrollPage({ employees, attendance, todayStr }){
-  const totalGross = employees.reduce((s,e)=>s+e.salary.gross,0);
-  const totalNet = employees.reduce((s,e)=>s+e.salary.net,0);
+function AdminPayrollPage({ employees, attendance, todayStr, salaries }){
+  const employeesWithSalary = useMemo(() => {
+    return employees.map(e => ({
+      ...e,
+      salary: salaries[e.id] || { gross: 0, net: 0, pf: 0, professionalTax: 0 }
+    }));
+  }, [employees, salaries]);
+
+  const totalGross = employeesWithSalary.reduce((s,e)=>s+e.salary.gross,0);
+  const totalNet = employeesWithSalary.reduce((s,e)=>s+e.salary.net,0);
   const byDept = useMemo(()=>{
     const map = {};
-    employees.forEach(e=>{ map[e.department]=(map[e.department]||0)+e.salary.gross; });
+    employeesWithSalary.forEach(e=>{ map[e.department]=(map[e.department]||0)+e.salary.gross; });
     return Object.entries(map).map(([name,value])=>({name, value:Math.round(value/1000)}));
-  },[employees]);
+  },[employeesWithSalary]);
 
   return (
     <div>
@@ -1161,7 +1295,7 @@ function AdminPayrollPage({ employees, attendance, todayStr }){
         <table className="df-table">
           <thead><tr><th>Employee</th><th>Department</th><th>Monthly Wage</th><th>Gross</th><th>Deductions</th><th>Net</th></tr></thead>
           <tbody>
-            {employees.map(e=>(
+            {employeesWithSalary.map(e=>(
               <tr key={e.id}>
                 <td><div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={e.name} size={26}/>{e.name}</div></td>
                 <td>{e.department}</td>
@@ -1189,7 +1323,7 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
     let answer;
     if (text.includes("absen")){
       const counts = {};
-      attendance.filter(a=>a.status==="Absent").forEach(a=>{ counts[a.employeeId]=(counts[a.employeeId]||0)+1; });
+      attendance.filter(a=>a.status==="absent").forEach(a=>{ counts[a.employeeId]=(counts[a.employeeId]||0)+1; });
       const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
       if (sorted.length===0) answer = "No absences recorded in the current window — great attendance!";
       else {
@@ -1208,10 +1342,16 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
         answer = `${pending.length} pending request(s): ${lines.join("; ")}.`;
       }
     } else if (text.includes("present") || text.includes("today")){
-      const present = employees.filter(e=>getTodayStatus(e.id)==="Present").length;
+      const present = employees.filter(e=>{
+        const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
+        return a && (a.status === "present" || a.status === "half_day");
+      }).length;
       answer = `${present} of ${employees.length} employees are checked in today.`;
     } else if (text.includes("payroll") || text.includes("salary") || text.includes("gross") || text.includes("net")){
-      const totalNet = employees.reduce((s,e)=>s+e.salary.net,0);
+      const totalNet = employees.reduce((s,e)=> {
+        const sal = salaries[e.id] || { net: 0 };
+        return s + sal.net;
+      }, 0);
       answer = `Total monthly net payroll across ${employees.length} employees is ${fmtINR(totalNet)}.`;
     } else if (text.includes("leave") && text.includes("most")){
       const map = {};
@@ -1333,8 +1473,9 @@ function CredentialsModal({ result, onClose, onLoginAs }){
 }
 
 /* ============================= EMPLOYEE SHELL ============================== */
+/* ============================= EMPLOYEE SHELL ============================== */
 function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAttendance, getTodayStatus, getAllocations,
-  empAttendanceHistory, empLeaveHistory, checkIn, checkOut, submitLeaveRequest, onLogout }){
+  checkIn, checkOut, submitLeaveRequest, onLogout }){
   const [page, setPage] = useState("dashboard");
   const [requestOpen, setRequestOpen] = useState(false);
   if (!me) return null;
@@ -1348,7 +1489,10 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
   ];
   const todayA = getTodayAttendance(me.id);
   const allocations = getAllocations(me.id);
-  const myLeave = empLeaveHistory(me.id);
+  
+  // TODO: leave request field shape pending Member 3 confirmation.
+  const myLeave = useMemo(() => leaveRequests.filter(r => r.employeeId === me.id), [leaveRequests, me.id]);
+  const myAttendance = useMemo(() => attendance.filter(a => a.employeeId === me.id), [attendance, me.id]);
 
   return (
     <div style={{display:"flex"}}>
@@ -1371,7 +1515,7 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
         {page==="attendance" && (
           <div>
             <PageHeader title="My Attendance" subtitle="Your check-in history."/>
-            <AttendanceTable rows={empAttendanceHistory(me.id)}/>
+            <AttendanceTable rows={myAttendance}/>
           </div>
         )}
         {page==="timeoff" && (
@@ -1401,6 +1545,20 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
   const checkedOut = !!(todayA && todayA.checkOut);
   const recentLeave = myLeave.slice(0,3);
 
+  const [netPay, setNetPay] = useState("—");
+
+  useEffect(() => {
+    let active = true;
+    getEmployeeSalary(me.id)
+      .then(res => {
+        if (active) setNetPay(fmtINR(res.net));
+      })
+      .catch(err => {
+        console.error(err);
+      });
+    return () => { active = false; };
+  }, [me.id]);
+
   return (
     <div>
       <PageHeader title={`Hey, ${me.firstName} 👋`} subtitle={prettyDate(new Date())}/>
@@ -1411,7 +1569,7 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
             <button className="df-btn df-btn-primary" style={{flex:1, justifyContent:"center"}} disabled={checkedIn} onClick={checkIn}>Check In</button>
             <button className="df-btn df-btn-ghost" style={{flex:1, justifyContent:"center"}} disabled={!checkedIn || checkedOut} onClick={checkOut}>Check Out</button>
           </div>
-          {checkedIn && <p style={{fontSize:11.5, color:"var(--ink-faint)", marginTop:10}}>Checked in at {fmtTime(todayA.checkIn)}{checkedOut ? ` · out at ${fmtTime(todayA.checkOut)}` : ""}</p>}
+          {checkedIn && todayA.checkIn && <p style={{fontSize:11.5, color:"var(--ink-faint)", marginTop:10}}>Checked in at {fmtTime(new Date(todayA.checkIn))}{checkedOut && todayA.checkOut ? ` · out at ${fmtTime(new Date(todayA.checkOut))}` : ""}</p>}
         </div>
 
         <div style={{display:"flex", flexDirection:"column", gap:14}}>
@@ -1431,18 +1589,19 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
               <h3 style={{fontSize:14, margin:0}}>Recent time-off requests</h3>
               <button className="df-btn df-btn-ghost df-btn-sm" onClick={()=>onGoTo("timeoff")}>View all</button>
             </div>
-            {recentLeave.length===0 ? <EmptyState title="No requests yet" subtitle="Your submitted requests will appear here."/> : (
-              <div style={{display:"flex", flexDirection:"column", gap:10}}>
-                {recentLeave.map(r=>(
-                  <div key={r.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13}}>
-                    <div>
-                      <div style={{fontWeight:600}}>{LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name}</div>
-                      <div className="df-mono" style={{fontSize:11.5, color:"var(--ink-faint)"}}>{r.startDate} → {r.endDate}</div>
-                    </div>
-                    <LeaveStatusBadge status={r.status}/>
-                  </div>
-                ))}
-              </div>
+            {recentLeave.length===0 ? <EmptyState title="No requests yet" subtitle="Your requests will list here."/> : (
+              <table className="df-table" style={{fontSize:12.5}}>
+                <thead><tr><th>Dates</th><th>Type</th><th>Status</th></tr></thead>
+                <tbody>
+                  {recentLeave.map(r=>(
+                    <tr key={r.id}>
+                      <td className="df-mono">{r.startDate} → {r.endDate}</td>
+                      <td>{LEAVE_TYPES.find(t=>t.id===r.leaveTypeId)?.name || r.leaveTypeId}</td>
+                      <td><LeaveStatusBadge status={r.status}/></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
@@ -1455,7 +1614,7 @@ function EmployeeDashboard({ me, todayA, allocations, myLeave, checkIn, checkOut
         </div>
         <div className="df-card" style={{padding:20, flex:1, cursor:"pointer"}} onClick={()=>onGoTo("payroll")}>
           <Icon.wallet/><div style={{fontWeight:700, fontSize:13.5, marginTop:8}}>Payroll</div>
-          <div style={{fontSize:12, color:"var(--ink-faint)"}}>Net pay: {fmtINR(me.salary.net)}/mo</div>
+          <div style={{fontSize:12, color:"var(--ink-faint)"}}>Net pay: {netPay}</div>
         </div>
         <div className="df-card" style={{padding:20, flex:1, cursor:"pointer"}} onClick={()=>onGoTo("attendance")}>
           <Icon.clock/><div style={{fontWeight:700, fontSize:13.5, marginTop:8}}>Attendance</div>
@@ -1512,3 +1671,126 @@ function RequestTimeOffModal({ allocations, onClose, onSubmit }){
     </Modal>
   );
 }
+
+function AdminAnalyticsPage({ employees, attendance, leaveRequests, salaries }){
+  const [range, setRange] = useState(7); // 7 or 30 days
+
+  // 1. Attendance stats over range (7 or 30 working days)
+  const attendanceData = useMemo(() => {
+    const dates = [];
+    for (let i = range - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      if (d.getDay() !== 0 && d.getDay() !== 6) {
+        dates.push(fmtDate(d));
+      }
+    }
+
+    return dates.map(dateStr => {
+      const dayRecords = attendance.filter(a => a.date === dateStr);
+      const checkedInCount = dayRecords.filter(a => a.status === "present" || a.status === "half_day").length;
+      return {
+        date: dateStr.slice(5), // MM-DD
+        "Checked In": checkedInCount
+      };
+    });
+  }, [attendance, range]);
+
+  // 2. Leave stats by type/status
+  // TODO: leave request field shape pending Member 3 confirmation.
+  const leaveStatusData = useMemo(() => {
+    const counts = { Approved: 0, Pending: 0, Rejected: 0 };
+    leaveRequests.forEach(r => {
+      if (counts[r.status] !== undefined) counts[r.status]++;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [leaveRequests]);
+
+  // TODO: leave request field shape pending Member 3 confirmation.
+  const leaveTypeData = useMemo(() => {
+    const counts = { pto: 0, sick: 0, unpaid: 0 };
+    leaveRequests.forEach(r => {
+      if (counts[r.leaveTypeId] !== undefined) counts[r.leaveTypeId]++;
+    });
+    const labelMap = { pto: "Paid Time Off", sick: "Sick Leave", unpaid: "Unpaid Leave" };
+    return Object.entries(counts).map(([id, value]) => ({ name: labelMap[id] || id, value }));
+  }, [leaveRequests]);
+
+  const COLORS = ["#4C5FD6", "#FF7A45", "#188A66"];
+
+  // 3. Payroll by department
+  const payrollData = useMemo(() => {
+    const map = {};
+    employees.forEach(e => {
+      const sal = salaries[e.id] || { gross: 0 };
+      map[e.department] = (map[e.department] || 0) + sal.gross;
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value: Math.round(value / 1000) }));
+  }, [employees, salaries]);
+
+  return (
+    <div style={{display:"flex", flexDirection:"column", gap:20}}>
+      <PageHeader title="Analytics" subtitle="System insights and range-based HR reporting."
+        action={
+          <select className="df-select" style={{maxWidth:120}} value={range} onChange={e => setRange(Number(e.target.value))}>
+            <option value={7}>7 Days</option>
+            <option value={30}>30 Days</option>
+          </select>
+        }
+      />
+
+      <div className="df-card" style={{padding:20}}>
+        <h3 style={{fontSize:14.5, margin:"0 0 14px"}}>Attendance Volume (Checked In Employees)</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={attendanceData}>
+            <CartesianGrid vertical={false} stroke="#EEF0F6"/>
+            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize:11, fill:"#9AA0AF"}}/>
+            <YAxis axisLine={false} tickLine={false} tick={{fontSize:11, fill:"#9AA0AF"}}/>
+            <Tooltip contentStyle={{borderRadius:10, fontSize:12}}/>
+            <Bar dataKey="Checked In" fill="#4C5FD6" radius={[4,4,0,0]}/>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16}}>
+        <div className="df-card" style={{padding:20}}>
+          <h3 style={{fontSize:14.5, margin:"0 0 14px"}}>Leave Requests by Status</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={leaveStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} fill="#8884d8" label={{fontSize:11}}>
+                {leaveStatusData.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+              </Pie>
+              <Tooltip/>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="df-card" style={{padding:20}}>
+          <h3 style={{fontSize:14.5, margin:"0 0 14px"}}>Leave Requests by Type</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={leaveTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} fill="#8884d8" label={{fontSize:11}}>
+                {leaveTypeData.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+              </Pie>
+              <Tooltip/>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="df-card" style={{padding:20}}>
+        <h3 style={{fontSize:14.5, margin:"0 0 14px"}}>Gross Payroll Distribution by Department (₹ thousands)</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={payrollData}>
+            <CartesianGrid vertical={false} stroke="#EEF0F6"/>
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:11, fill:"#9AA0AF"}}/>
+            <YAxis axisLine={false} tickLine={false} tick={{fontSize:11, fill:"#9AA0AF"}}/>
+            <Tooltip formatter={(v) => `₹${v}k`}/>
+            <Bar dataKey="value" fill="#1E2A52" radius={[4,4,0,0]}/>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
