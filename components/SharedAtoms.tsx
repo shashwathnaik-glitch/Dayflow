@@ -85,6 +85,11 @@ export const Icon = {
       <path d="M8.2 15.5a1.9 1.9 0 003.6 0" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   ),
+  chart: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}>
+      <path d="M3.3 17V3.3m0 13.4h13.4M6.7 13.3v-4m3.3 4v-7.3m3.3 7.3v-10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   spark: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 20 20" width="17" height="17" fill="none" {...p}>
       <path d="M10 2.5l1.4 4.6 4.6 1.4-4.6 1.4L10 14.5l-1.4-4.6-4.6-1.4 4.6-1.4L10 2.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
@@ -131,9 +136,20 @@ export const Badge: React.FC<BadgeProps> = ({ tone = 'neutral', children }) => {
 export interface AvatarProps {
   name: string;
   size?: number;
+  url?: string | null;
 }
 
-export const Avatar: React.FC<AvatarProps> = ({ name, size = 38 }) => {
+export const Avatar: React.FC<AvatarProps> = ({ name, size = 38, url }) => {
+  if (url) {
+    return (
+      <img 
+        src={url} 
+        alt={name} 
+        className="df-avatar" 
+        style={{ width: size, height: size, objectFit: "cover" }} 
+      />
+    );
+  }
   return (
     <div
       className="df-avatar"
