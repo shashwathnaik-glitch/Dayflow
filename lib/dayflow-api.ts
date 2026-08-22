@@ -623,3 +623,22 @@ export async function getLeaveAttachmentUrl(path: string): Promise<{ data: strin
   }
 }
 
+/**
+ * Updates the monthly wage of an employee. Admin only.
+ * 
+ * @param employeeId The employee UUID.
+ * @param monthlyWage The new monthly wage amount.
+ * @returns The updated employee details or an error.
+ */
+export async function updateEmployeeSalary(employeeId: string, monthlyWage: number): Promise<{ data: any; error: any }> {
+  const { data, error } = await supabase
+    .from('employees')
+    .update({ monthly_wage: monthlyWage })
+    .eq('id', employeeId)
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+
