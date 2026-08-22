@@ -16,6 +16,13 @@ import {
   calculateSalaryPreview
 } from "./lib/dayflow-api";
 
+export const ATTENDANCE_STATUS = {
+  PRESENT: "Present",
+  HALF_DAY: "Half-day",
+  ABSENT: "Absent",
+  LEAVE: "On Leave"
+};
+
 /* =========================================================================
    DAYFLOW — HRMS PROTOTYPE
    "Every workday, perfectly aligned."
@@ -215,7 +222,7 @@ function buildSeed(){
     employees.forEach((emp, idx) => {
       const roll = (hashStr(emp.id+dateStr) % 100 + 100) % 100;
       if (roll < 6) {
-        attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn:null, checkOut:null, workHours:0, extraHours:0, status:"absent" });
+        attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn:null, checkOut:null, workHours:0, extraHours:0, status: ATTENDANCE_STATUS.ABSENT });
         return;
       }
       const inHour = 9 + (roll % 3 === 0 ? 1 : 0);
@@ -226,7 +233,7 @@ function buildSeed(){
       const checkOut = new Date(d); checkOut.setHours(outHour, outMin, 0);
       const workHours = +(((checkOut - checkIn) / 3600000)).toFixed(1);
       const extraHours = +Math.max(0, workHours-8).toFixed(1);
-      const status = workHours < 5 ? "half_day" : "present";
+      const status = workHours < 5 ? ATTENDANCE_STATUS.HALF_DAY : ATTENDANCE_STATUS.PRESENT;
       attendance.push({ employeeId:emp.id, date:dateStr, day:dayName(d), checkIn, checkOut, workHours, extraHours, status });
     });
   }
@@ -254,7 +261,7 @@ function buildSeed(){
   const todayStr = fmtDate(today);
   [employees[0], employees[3]].forEach(emp => {
     const ci = new Date(); ci.setHours(9,20,0);
-    attendance.push({ employeeId:emp.id, date:todayStr, day:dayName(today), checkIn:ci, checkOut:null, workHours:0, extraHours:0, status:"present" });
+    attendance.push({ employeeId:emp.id, date:todayStr, day:dayName(today), checkIn:ci, checkOut:null, workHours:0, extraHours:0, status: ATTENDANCE_STATUS.PRESENT });
   });
 
   return { employees, users, attendance, leaveAllocations, leaveRequests, genLoginId, todayStr };
@@ -327,7 +334,7 @@ function LeaveStatusBadge({ status }){
   return <Badge tone={tone}>{status}</Badge>;
 }
 function AttendanceBadge({ status }){
-  const tone = status==="Present"?"present":status==="On Leave"?"leave":status==="Half-day"?"leave":status==="Absent"?"absent":"neutral";
+  const tone = status===ATTENDANCE_STATUS.PRESENT?"present":status===ATTENDANCE_STATUS.LEAVE?"leave":status===ATTENDANCE_STATUS.HALF_DAY?"leave":status===ATTENDANCE_STATUS.ABSENT?"absent":"neutral";
   return <Badge tone={tone}>{status}</Badge>;
 }
 
@@ -455,14 +462,14 @@ export default function DayflowApp(){
   function getTodayStatus(empId){
     // TODO: leave request field shape pending Member 3 confirmation.
     const onLeave = leaveRequests.some(r => r.employeeId===empId && r.status==="Approved" && overlaps(todayStr, r.startDate, r.endDate));
-    if (onLeave) return "On Leave";
+    if (onLeave) return ATTENDANCE_STATUS.LEAVE;
 
     const a = getTodayAttendance(empId);
     if (a) {
-      if (a.status === "present") return "Present";
-      if (a.status === "half_day") return "Half-day";
-      if (a.status === "leave") return "On Leave";
-      if (a.status === "absent") return "Absent";
+      if (a.status === ATTENDANCE_STATUS.PRESENT) return ATTENDANCE_STATUS.PRESENT;
+      if (a.status === ATTENDANCE_STATUS.HALF_DAY) return ATTENDANCE_STATUS.HALF_DAY;
+      if (a.status === ATTENDANCE_STATUS.LEAVE) return ATTENDANCE_STATUS.LEAVE;
+      if (a.status === ATTENDANCE_STATUS.ABSENT) return ATTENDANCE_STATUS.ABSENT;
     }
     return "Not Checked In";
   }
@@ -510,7 +517,7 @@ export default function DayflowApp(){
       const checkOut = new Date();
       const workHours = +(((checkOut - a.checkIn)/3600000)).toFixed(1);
       const extraHours = +Math.max(0, workHours-8).toFixed(1);
-      return { ...a, checkOut, workHours, extraHours, status: workHours<5?"Half-day":"Present" };
+      return { ...a, checkOut, workHours, extraHours, status: workHours<5?ATTENDANCE_STATUS.HALF_DAY:ATTENDANCE_STATUS.PRESENT };
     }));
     toast("Checked out. See you tomorrow!");
   }
@@ -534,32 +541,6 @@ export default function DayflowApp(){
     toast(`Request ${decision.toLowerCase()}.`, decision==="Rejected"?"err":"ok");
     return res;
   }
-  function createEmployee(payload){
-=======
-      return { ...a, checkOut, workHours, extraHours, status: workHours<5?"half_day":"present" };
-    }));
-    toast("Checked out. See you tomorrow!");
-  }
-  function submitLeaveRequest(empId, payload){
-    if (!(session && (session.role==="admin" || session.employeeId===empId))) return toast("Not authorized.","err");
-    // TODO: leave request field shape pending Member 3 confirmation.
-    const rec = { id:"lr_"+Math.random().toString(36).slice(2,8), employeeId:empId, status:"Pending", comment:"", createdAt:fmtDate(today), ...payload };
-    setLeaveRequests(r=>[rec, ...r]);
-    toast("Time off request submitted.");
-  }
-  async function decideLeave(reqId, decision, comment){
-    if (!(session && session.role==="admin")) return toast("Only Admin/HR can approve or reject requests.","err");
-    try {
-      await reviewLeaveRequest(reqId, decision, comment);
-      toast(`Request ${decision.toLowerCase()}.`, decision==="Rejected"?"err":"ok");
-      await loadData();
-    } catch (err) {
-      console.error(err);
-      toast("Failed to review leave request.", "err");
-    }
-  }
-  async function createEmployee(payload){
->>>>>>> 26e2cbd3d60a476721bceee5bfe2b0a9f02d2e1b
     if (!(session && session.role==="admin")) return toast("Only Admin/HR can create employees.","err");
     const joinYear = String(new Date().getFullYear());
     const { code, serial } = seed.genLoginId(payload.firstName, payload.lastName, joinYear);
@@ -819,11 +800,11 @@ function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTod
   const total = employees.length;
   const presentToday = employees.filter(e=>{
     const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
-    return a && (a.status === "present" || a.status === "half_day");
+    return a && (a.status === ATTENDANCE_STATUS.PRESENT || a.status === ATTENDANCE_STATUS.HALF_DAY);
   }).length;
   const onLeaveToday = employees.filter(e=>{
     const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
-    const hasLeaveRow = a && a.status === "leave";
+    const hasLeaveRow = a && a.status === ATTENDANCE_STATUS.LEAVE;
     // TODO: leave request field shape pending Member 3 confirmation.
     const hasApprovedLeave = leaveRequests.some(r => r.employeeId === e.id && r.status === "Approved" && overlaps(todayStr, r.startDate, r.endDate));
     return hasLeaveRow || hasApprovedLeave;
@@ -837,8 +818,8 @@ function AdminDashboard({ employees, attendance, leaveRequests, todayStr, getTod
       const d = new Date(); d.setDate(d.getDate()-i);
       if (isWeekend(d)) continue;
       const ds = fmtDate(d);
-      const present = attendance.filter(a=>a.date===ds && (a.status==="present" || a.status==="half_day")).length;
-      const absent = attendance.filter(a=>a.date===ds && a.status==="absent").length;
+      const present = attendance.filter(a=>a.date===ds && (a.status===ATTENDANCE_STATUS.PRESENT || a.status===ATTENDANCE_STATUS.HALF_DAY)).length;
+      const absent = attendance.filter(a=>a.date===ds && a.status===ATTENDANCE_STATUS.ABSENT).length;
       days.push({ day: d.toLocaleDateString("en-US",{weekday:"short"}), Present:present, Absent:absent });
     }
     return days;
@@ -1554,7 +1535,7 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
     let answer;
     if (text.includes("absen")){
       const counts = {};
-      attendance.filter(a=>a.status==="absent").forEach(a=>{ counts[a.employeeId]=(counts[a.employeeId]||0)+1; });
+      attendance.filter(a=>a.status===ATTENDANCE_STATUS.ABSENT).forEach(a=>{ counts[a.employeeId]=(counts[a.employeeId]||0)+1; });
       const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
       if (sorted.length===0) answer = "No absences recorded in the current window — great attendance!";
       else {
@@ -1575,7 +1556,7 @@ function AskDayflow({ employees, attendance, leaveRequests, getTodayStatus }){
     } else if (text.includes("present") || text.includes("today")){
       const present = employees.filter(e=>{
         const a = attendance.find(x => x.employeeId === e.id && x.date === todayStr);
-        return a && (a.status === "present" || a.status === "half_day");
+        return a && (a.status === ATTENDANCE_STATUS.PRESENT || a.status === ATTENDANCE_STATUS.HALF_DAY);
       }).length;
       answer = `${present} of ${employees.length} employees are checked in today.`;
     } else if (text.includes("payroll") || text.includes("salary") || text.includes("gross") || text.includes("net")){
@@ -1981,7 +1962,7 @@ function AdminAnalyticsPage({ employees, attendance, leaveRequests, salaries }){
 
     return dates.map(dateStr => {
       const dayRecords = attendance.filter(a => a.date === dateStr);
-      const checkedInCount = dayRecords.filter(a => a.status === "present" || a.status === "half_day").length;
+      const checkedInCount = dayRecords.filter(a => a.status === ATTENDANCE_STATUS.PRESENT || a.status === ATTENDANCE_STATUS.HALF_DAY).length;
       return {
         date: dateStr.slice(5), // MM-DD
         "Checked In": checkedInCount
