@@ -3,6 +3,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
+import { checkInApi, checkOutApi, fetchTodayAttendanceApi, fetchAttendanceHistoryApi, isUuid } from "./services/attendanceService.js";
+import { fetchEmployeePrivateInfoApi } from "./services/employeeService.js";
 import {
   listEmployees,
   getAllAttendance,
@@ -430,6 +432,15 @@ export default function DayflowApp(){
 
   /* ------------------------------ Derived data ------------------------------ */
   function getTodayAttendance(empId){ return attendance.find(a=>a.employeeId===empId && a.date===todayStr); }
+    function getEmpLeaveToday(empId){
+    return leaveRequests.find(r => r.employeeId===empId && (r.status==="Approved" || r.status==="approved") && overlaps(todayStr, r.startDate, r.endDate));
+  }
+  function empAttendanceHistory(empId){
+    return attendance.filter(a=>a.employeeId===empId).sort((a,b)=> a.date<b.date?1:-1);
+  }
+  function empLeaveHistory(empId){
+    return leaveRequests.filter(r=>r.employeeId===empId).sort((a,b)=> a.createdAt<b.createdAt?1:-1);
+  }
   function getTodayStatus(empId){
     // TODO: leave request field shape pending Member 3 confirmation.
     const onLeave = leaveRequests.some(r => r.employeeId===empId && r.status==="Approved" && overlaps(todayStr, r.startDate, r.endDate));
@@ -452,21 +463,43 @@ export default function DayflowApp(){
   }
 
   /* ------------------------------- Actions (RBAC-guarded) ------------------------------- */
-  function checkIn(empId){
+    async function checkIn(empId){
     if (!(session && (session.role==="admin" || session.employeeId===empId))) return toast("Not authorized.","err");
     if (getTodayAttendance(empId)) return toast("Already checked in today.","err");
-    const rec = { employeeId:empId, date:todayStr, day:dayName(today), checkIn:new Date(), checkOut:null, workHours:0, extraHours:0, status:"present" };
+
+    if (isUuid(empId)) {
+      const apiRes = await checkInApi(empId, todayStr);
+      if (apiRes && apiRes.ok && apiRes.record) {
+        setAttendance(a=>[...a.filter(x=>!(x.employeeId===empId && x.date===todayStr)), apiRes.record]);
+        return toast("Checked in — have a great day!");
+      }
+    }
+
+    const rec = { employeeId:empId, date:todayStr, day:dayName(today), checkIn:new Date(), checkOut:null, workHours:0, extraHours:0, status:"Present" };
     setAttendance(a=>[...a, rec]);
     toast("Checked in — have a great day!");
   }
-  function checkOut(empId){
+    async function checkOut(empId){
     if (!(session && (session.role==="admin" || session.employeeId===empId))) return toast("Not authorized.","err");
+    const todayRec = getTodayAttendance(empId);
+    if (!todayRec || !todayRec.checkIn) return toast("Not checked in today.","err");
+
+    if (isUuid(empId)) {
+      const apiRes = await checkOutApi(empId, todayStr);
+      if (apiRes && apiRes.ok && apiRes.record) {
+        setAttendance(list => list.map(a => (a.employeeId===empId && a.date===todayStr) ? apiRes.record : a));
+        return toast("Checked out. See you tomorrow!");
+      } else if (apiRes && !apiRes.ok && apiRes.error === "Not checked in today.") {
+        return toast("Not checked in today.","err");
+      }
+    }
+
     setAttendance(list => list.map(a => {
       if (a.employeeId!==empId || a.date!==todayStr) return a;
       const checkOut = new Date();
       const workHours = +(((checkOut - a.checkIn)/3600000)).toFixed(1);
       const extraHours = +Math.max(0, workHours-8).toFixed(1);
-      return { ...a, checkOut, workHours, extraHours, status: workHours<5?"half_day":"present" };
+      return { ...a, checkOut, workHours, extraHours, status: workHours<5?"Half-day":"Present" };
     }));
     toast("Checked out. See you tomorrow!");
   }
@@ -1478,6 +1511,32 @@ function EmployeeShell({ me, employees, attendance, leaveRequests, getTodayAtten
   checkIn, checkOut, submitLeaveRequest, onLogout }){
   const [page, setPage] = useState("dashboard");
   const [requestOpen, setRequestOpen] = useState(false);
+  const [profileTab, setProfileTab] = useState("basic");
+  const [privateInfo, setPrivateInfo] = useState(me?.privateInfo || null);
+  const [loadingPrivate, setLoadingPrivate] = useState(false);
+  const [privateError, setPrivateError] = useState("");
+
+  useEffect(() => {
+    if (page === "profile" && profileTab === "private" && me) {
+      setLoadingPrivate(true);
+      setPrivateError("");
+      const dummySession = { role: "employee", employeeId: me.id };
+      fetchEmployeePrivateInfoApi(me.id, dummySession)
+        .then(res => {
+          if (res && res.ok && res.data) {
+            setPrivateInfo(res.data);
+          } else {
+            if (me.privateInfo) setPrivateInfo(me.privateInfo);
+            else setPrivateError(res?.error || "Unable to load private details.");
+          }
+        })
+        .catch(() => {
+          if (me.privateInfo) setPrivateInfo(me.privateInfo);
+          else setPrivateError("Unable to connect to backend.");
+        })
+        .finally(() => setLoadingPrivate(false));
+    }
+  }, [page, profileTab, me]);
   if (!me) return null;
 
   const nav = [
