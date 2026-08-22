@@ -10,7 +10,8 @@ import {
   createEmployee as createEmployeeApi,
   getMyAttendance,
   getMyLeaveRequests,
-  getMySalary
+  getMySalary,
+  getEmployee
 } from '@/lib/dayflow-api';
 import { supabase } from '@/lib/supabaseClient';
 import { checkInApi, checkOutApi, isUuid } from '@/services/attendanceService';
@@ -87,25 +88,32 @@ export const DayflowDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setLeaveRequests(leaveList);
         setSalaries(salaryMap);
       } else {
-        const [empRes, attRes, leaveRes, salaryRes] = await Promise.all([
-          listEmployees(),
+        const employeeId = profile?.employee_id;
+        if (!employeeId) {
+          setEmployees([]);
+          setAttendance([]);
+          setLeaveRequests([]);
+          setSalaries({});
+          return;
+        }
+
+        const [empRes, attRes, leaveRes] = await Promise.all([
+          getEmployee(employeeId),
           getMyAttendance(),
-          getMyLeaveRequests(),
-          getMySalary()
+          getMyLeaveRequests()
         ]);
 
-        const empList = empRes.data || [];
+        const empData = empRes.data ? mapEmployee(empRes.data) : null;
         const attList = attRes.data || [];
         const leaveList = leaveRes.data || [];
-        const mySalary = salaryRes.data || null;
+        const mySalary = empRes.data?.salary || null;
 
         const salaryMap: Record<string, any> = {};
-        const employeeId = profile?.employee_id;
-        if (employeeId && mySalary) {
+        if (mySalary) {
           salaryMap[employeeId] = mySalary;
         }
 
-        setEmployees(empList.map(mapEmployee).filter(Boolean));
+        setEmployees(empData ? [empData] : []);
         setAttendance(attList);
         setLeaveRequests(leaveList);
         setSalaries(salaryMap);
